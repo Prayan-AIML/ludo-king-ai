@@ -3,451 +3,371 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Ludo King — Play vs AI</title>
+<title>Ludo King — Play & LLM Benchmark</title>
 <style>
   :root{
-    --red:#e63946; --green:#2a9d4a; --yellow:#f4c20d; --blue:#1d75c9;
-    --line:#1a1a1a; --felt:#0b6b3a;
+    --red:#e2566a; --green:#34b27b; --yellow:#f2c14e; --blue:#3d8bd4;
+    --bg:#eef2f8; --panel:#ffffff; --ink:#283042; --muted:#6b7488;
+    --line:#e2e7f0; --soft:#f5f7fb; --accent:#3d8bd4;
   }
   *{box-sizing:border-box;}
   body{
-    margin:0; font-family:"Trebuchet MS","Segoe UI",sans-serif;
-    background:radial-gradient(1100px 600px at 50% -5%,#128a4d 0%,transparent 60%),var(--felt);
-    color:#fff; min-height:100vh; padding:18px 14px;
+    margin:0; font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif;
+    background:var(--bg); color:var(--ink); min-height:100vh;
   }
-  h1{text-align:center; margin:0 0 14px; font-size:30px; font-weight:900; letter-spacing:1px; text-shadow:0 2px 0 rgba(0,0,0,.25);}
-  h1 .l1{color:var(--red)} h1 .l2{color:var(--green)} h1 .l3{color:var(--yellow)} h1 .l4{color:var(--blue)}
+  .wrap{max-width:1080px; margin:0 auto; padding:20px 16px 40px;}
 
-  .layout{display:flex; gap:20px; justify-content:center; align-items:flex-start; flex-wrap:wrap; max-width:1120px; margin:0 auto;}
-  .panel{display:flex; flex-direction:column;}
+  /* header / tabs */
+  header{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:18px;}
+  .brand{display:flex; align-items:center; gap:12px;}
+  .logo{width:40px; height:40px; border-radius:10px; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; overflow:hidden; border:2px solid var(--ink);}
+  .logo span{display:block;}
+  .logo .a{background:var(--red);} .logo .b{background:var(--green);}
+  .logo .c{background:var(--blue);} .logo .d{background:var(--yellow);}
+  h1{margin:0; font-size:22px; font-weight:800; letter-spacing:.3px;}
+  .sub{margin:0; font-size:13px; color:var(--muted);}
+  .tabs{display:flex; gap:6px; background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:5px;}
+  .tab{border:none; background:transparent; color:var(--muted); font:inherit; font-weight:700; padding:9px 18px; border-radius:9px; cursor:pointer;}
+  .tab.active{background:var(--accent); color:#fff;}
 
-  /* ---------- controls ---------- */
-  .controls{
-    background:rgba(0,0,0,.25); border:3px solid var(--line); border-radius:14px;
-    padding:12px 14px; margin-bottom:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
-  }
-  #turnLabel{font-weight:900; font-size:16px;}
-  .dice{
-    width:52px; height:52px; border-radius:12px; background:#fff; color:#111;
-    display:flex; align-items:center; justify-content:center; font-size:38px; border:3px solid var(--line);
-  }
-  #msg{flex:1 1 100%; font-size:13px; color:#eafff1; min-height:18px;}
+  .view{display:none;} .view.active{display:block;}
 
-  button{
-    cursor:pointer; font-family:inherit; font-weight:900; border:3px solid var(--line);
-    border-radius:12px; padding:10px 18px; color:#fff; font-size:14px; text-transform:uppercase;
-    transition:transform .1s, filter .15s;
-  }
-  button:active{transform:translateY(2px);}
-  #rollBtn{background:var(--green);} #rollBtn:hover{filter:brightness(1.08);}
-  .reset{background:var(--yellow); color:#3a2c00;}
-  button:disabled{opacity:.45; cursor:not-allowed;}
+  /* ---------- PLAY ---------- */
+  .play{display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap;}
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:16px;}
+  .controls{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:14px;}
+  #turnLabel{font-weight:800;}
+  .dice{width:48px; height:48px; border-radius:12px; background:var(--soft); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:32px;}
+  #msg{flex:1 1 100%; font-size:13px; color:var(--muted); min-height:18px;}
+  button.btn{cursor:pointer; font:inherit; font-weight:800; border:none; border-radius:11px; padding:10px 18px; color:#fff; background:var(--green); transition:filter .15s, transform .1s;}
+  button.btn:hover{filter:brightness(1.05);} button.btn:active{transform:translateY(1px);}
+  button.btn.ghost{background:var(--soft); color:var(--ink); border:1px solid var(--line);}
+  button.btn:disabled{opacity:.45; cursor:not-allowed;}
 
-  /* ---------- board ---------- */
-  .board{
-    width:480px; height:480px; display:grid;
-    grid-template-columns:repeat(15,1fr); grid-template-rows:repeat(15,1fr);
-    background:#fff; border:6px solid var(--line); border-radius:12px; box-shadow:0 14px 34px rgba(0,0,0,.45);
-    position:relative;
-  }
-  .home{display:flex; align-items:center; justify-content:center; border:3px solid var(--line);}
+  .board{width:440px; max-width:90vw; aspect-ratio:1; display:grid; grid-template-columns:repeat(15,1fr); grid-template-rows:repeat(15,1fr); background:#fff; border:5px solid var(--ink); border-radius:12px; position:relative;}
+  .home{display:flex; align-items:center; justify-content:center; border:2px solid var(--ink);}
   .home.red{background:var(--red); grid-area:1/1/7/7;}
   .home.green{background:var(--green); grid-area:1/10/7/16;}
   .home.blue{background:var(--blue); grid-area:10/1/16/7;}
   .home.yellow{background:var(--yellow); grid-area:10/10/16/16;}
-  .pad{
-    width:74%; height:74%; background:#fff; border-radius:12px;
-    display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr;
-    place-items:center; gap:4px; padding:8%;
-  }
-  .deco{width:62%; aspect-ratio:1; border-radius:50%; border:3px solid rgba(0,0,0,.35); opacity:.45;}
+  .pad{width:74%; height:74%; background:#fff; border-radius:12px; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; place-items:center; gap:4px; padding:8%;}
+  .deco{width:60%; aspect-ratio:1; border-radius:50%; border:2px solid rgba(0,0,0,.3); opacity:.4;}
   .home.green .deco{background:var(--green);} .home.blue .deco{background:var(--blue);}
-
-  .cell{border:1px solid #bbb; background:#fff;}
+  .cell{border:1px solid #d8dde6; background:#fff;}
   .cell.red{background:var(--red);} .cell.green{background:var(--green);}
   .cell.blue{background:var(--blue);} .cell.yellow{background:var(--yellow);}
-  .cell.star{background:#eee;}
-  .cell.star::after{content:"★"; display:flex; align-items:center; justify-content:center; height:100%; color:#888; font-size:12px;}
-
-  .center{
-    grid-area:7/7/10/10; border:3px solid var(--line);
-    background:conic-gradient(from 45deg,var(--yellow) 0 90deg,var(--blue) 90deg 180deg,var(--red) 180deg 270deg,var(--green) 270deg 360deg);
-  }
-
-  /* ---------- pieces ---------- */
-  .piece{
-    width:22px; height:22px; border-radius:50%; align-self:center; justify-self:center;
-    border:3px solid rgba(0,0,0,.5); box-shadow:inset 0 -3px 4px rgba(0,0,0,.3),0 2px 4px rgba(0,0,0,.35);
-    z-index:5; position:relative;
-  }
+  .cell.star{background:#eef1f6;}
+  .center{grid-area:7/7/10/10; border:2px solid var(--ink); background:conic-gradient(from 45deg,var(--yellow) 0 90deg,var(--blue) 90deg 180deg,var(--red) 180deg 270deg,var(--green) 270deg 360deg);}
+  .piece{width:20px; height:20px; border-radius:50%; align-self:center; justify-self:center; border:3px solid rgba(0,0,0,.45); z-index:5; box-shadow:0 1px 2px rgba(0,0,0,.25);}
   .piece.red{background:var(--red);} .piece.yellow{background:var(--yellow);}
-  .piece.in-pad{width:34px; height:34px;}
-  .piece.done{box-shadow:0 0 0 3px #ffd700, inset 0 -3px 4px rgba(0,0,0,.3);}
-  .piece.done::after{content:"✓"; color:#fff; font-weight:900; font-size:16px; display:flex; align-items:center; justify-content:center; height:100%;}
+  .piece.in-pad{width:30px; height:30px;}
+  .piece.done{box-shadow:0 0 0 3px #ffcf5e;}
   .piece.movable{cursor:pointer; animation:glow 1s ease-in-out infinite;}
-  @keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(255,255,255,.9),inset 0 -3px 4px rgba(0,0,0,.3);} 50%{box-shadow:0 0 0 6px rgba(255,255,255,.15),0 0 14px 4px #fff,inset 0 -3px 4px rgba(0,0,0,.3);}}
+  @keyframes glow{0%,100%{box-shadow:0 0 0 0 rgba(61,139,212,.6);}50%{box-shadow:0 0 0 6px rgba(61,139,212,.18);}}
 
-  /* ---------- chat ---------- */
-  .chatpanel{width:400px; max-width:100%;}
-  .keybar{display:flex; gap:8px; margin-bottom:8px;}
-  .keybar input{flex:1; background:#fff; color:#111; border:3px solid var(--line); padding:10px 12px; border-radius:10px; font-family:inherit; font-size:14px; font-weight:600;}
-  .keybar input:focus{outline:none; border-color:var(--blue);}
-  .hint{font-size:12px; color:#c7ffdd; margin:0 0 8px;}
-  #chat{height:360px; overflow-y:auto; padding:14px; display:flex; flex-direction:column; gap:10px; background:rgba(255,255,255,.96); border:4px solid var(--line); border-radius:14px;}
-  .msgb{max-width:85%; padding:10px 14px; border-radius:14px; line-height:1.45; font-size:14px; font-weight:600; white-space:pre-wrap; word-wrap:break-word; color:#fff; border:3px solid rgba(0,0,0,.25); animation:pop .2s ease;}
-  @keyframes pop{from{opacity:0; transform:scale(.95)} to{opacity:1; transform:none}}
-  .msgb .who{display:block; font-size:10px; margin-bottom:3px; text-transform:uppercase; letter-spacing:1px; opacity:.95;}
-  .user{align-self:flex-end; background:var(--red); border-bottom-right-radius:4px;}
-  .bot{align-self:flex-start; background:var(--blue); border-bottom-left-radius:4px;}
-  .system{align-self:center; background:var(--yellow); color:#3a2c00; font-style:italic; border-radius:10px; font-size:13px;}
+  .chat{width:340px; max-width:90vw;}
+  .chat .keybar input{width:100%; background:#fff; color:var(--ink); border:1px solid var(--line); padding:10px 12px; border-radius:10px; font:inherit;}
+  .hint{font-size:12px; color:var(--muted); margin:8px 0;}
+  #chatlog{height:300px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding:6px 2px;}
+  .msgb{max-width:88%; padding:9px 13px; border-radius:14px; font-size:14px; line-height:1.45; white-space:pre-wrap; word-wrap:break-word;}
+  .msgb.user{align-self:flex-end; background:var(--blue); color:#fff; border-bottom-right-radius:4px;}
+  .msgb.bot{align-self:flex-start; background:var(--soft); color:var(--ink); border:1px solid var(--line); border-bottom-left-radius:4px;}
+  .msgb.system{align-self:center; background:#fff7e6; color:#8a6d1d; font-style:italic; font-size:13px; border:1px solid #f0e2bd;}
   .composer{display:flex; gap:8px; margin-top:10px;}
-  #input{flex:1; resize:none; background:#fff; color:#111; border:3px solid var(--line); padding:11px; border-radius:12px; font-family:inherit; font-size:14px; font-weight:600; height:52px;}
-  #input:focus{outline:none; border-color:var(--green);}
-  #send{background:var(--green);}
-  #chat::-webkit-scrollbar{width:8px;} #chat::-webkit-scrollbar-thumb{background:rgba(0,0,0,.25); border-radius:8px;}
+  #chatInput{flex:1; resize:none; height:48px; background:#fff; border:1px solid var(--line); border-radius:11px; padding:10px; font:inherit;}
+
+  /* ---------- BENCHMARK ---------- */
+  .lead-head{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:14px;}
+  .lead-head h2{margin:0; font-size:20px;}
+  .lead-head .meta{font-size:13px; color:var(--muted);}
+  .cards{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px 16px;}
+  .card .k{font-size:13px; color:var(--muted);}
+  .card .v{font-size:26px; font-weight:800;}
+  .bars{display:flex; flex-direction:column; gap:10px;}
+  .barrow{display:flex; align-items:center; gap:12px;}
+  .barrow .lbl{width:150px; font-weight:700; font-size:14px; flex-shrink:0;}
+  .track{flex:1; height:28px; background:var(--soft); border-radius:9px; position:relative; overflow:hidden; border:1px solid var(--line);}
+  .track.pending{border:1px dashed #c7cedb; background:transparent;}
+  .fill{height:100%; border-radius:9px;}
+  .pend{position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:12px; color:var(--muted);}
+  .barrow .val{width:64px; text-align:right; font-weight:800; font-size:14px; flex-shrink:0;}
+  .barrow .val.muted{color:var(--muted);}
+  .note{margin-top:18px; font-size:13px; color:var(--muted); line-height:1.6; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px 16px;}
+  code{background:var(--soft); padding:1px 6px; border-radius:6px; font-size:13px;}
 </style>
 </head>
 <body>
-  <h1><span class="l1">L</span><span class="l2">U</span><span class="l3">D</span><span class="l4">O</span> KING 🎲 — You vs AI</h1>
-
-  <div class="layout">
-    <!-- LEFT: game -->
-    <div class="panel">
-      <div class="controls">
-        <div id="turnLabel">Your turn 🔴</div>
-        <div class="dice" id="dice">🎲</div>
-        <button id="rollBtn">Roll Dice</button>
-        <button id="newGameBtn" class="reset">New Game</button>
-        <div id="msg">Roll a 6 to bring a token out of base!</div>
-      </div>
-
-      <div class="board" id="board">
-        <div class="home red"><div class="pad" id="pad-red"></div></div>
-        <div class="home green"><div class="pad"><i class="deco"></i><i class="deco"></i><i class="deco"></i><i class="deco"></i></div></div>
-        <div class="home blue"><div class="pad"><i class="deco"></i><i class="deco"></i><i class="deco"></i><i class="deco"></i></div></div>
-        <div class="home yellow"><div class="pad" id="pad-yellow"></div></div>
-        <div class="center"></div>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo"><span class="a"></span><span class="b"></span><span class="c"></span><span class="d"></span></div>
+      <div>
+        <h1>Ludo King</h1>
+        <p class="sub">play vs AI · LLM decision benchmark</p>
       </div>
     </div>
+    <div class="tabs">
+      <button class="tab active" data-view="play">Play</button>
+      <button class="tab" data-view="bench">Benchmark</button>
+    </div>
+  </header>
 
-    <!-- RIGHT: chat -->
-    <div class="panel chatpanel">
-      <div class="keybar">
-        <input id="apikey" type="text" name="openai_key_box" placeholder="(Optional) Paste OpenAI key (starts with sk-)…"
-               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
-               data-lpignore="true" data-1p-ignore="true" />
+  <!-- ================= PLAY ================= -->
+  <section class="view active" id="view-play">
+    <div class="play">
+      <div>
+        <div class="panel controls">
+          <span id="turnLabel">Your turn</span>
+          <span class="dice" id="dice">🎲</span>
+          <button class="btn" id="rollBtn">Roll</button>
+          <button class="btn ghost" id="newGameBtn">New game</button>
+          <span id="msg">Roll a 6 to bring a token out of base.</span>
+        </div>
+        <div class="board" id="board">
+          <div class="home red"><div class="pad" id="pad-red"></div></div>
+          <div class="home green"><div class="pad"><i class="deco"></i><i class="deco"></i><i class="deco"></i><i class="deco"></i></div></div>
+          <div class="home blue"><div class="pad"><i class="deco"></i><i class="deco"></i><i class="deco"></i><i class="deco"></i></div></div>
+          <div class="home yellow"><div class="pad" id="pad-yellow"></div></div>
+          <div class="center"></div>
+        </div>
       </div>
-      <p class="hint">The game works without a key. Add a key only if you want the AI to chat/taunt. Resets on reload.</p>
-      <div id="chat"><div class="msgb system">🎲 Welcome! Roll the dice to start. (Add a key above to chat with your opponent.)</div></div>
-      <div class="composer">
-        <textarea id="input" placeholder="Chat with your AI opponent…"></textarea>
-        <button id="send">Send</button>
+
+      <div class="panel chat">
+        <div class="keybar"><input id="apikey" type="text" name="openai_key_box" placeholder="(optional) OpenAI key for AI banter — sk-…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" /></div>
+        <p class="hint">The game works without a key. Add one only for AI taunts. Nothing is saved.</p>
+        <div id="chatlog"><div class="msgb system">Roll the dice to start. Add a key above to chat with your opponent.</div></div>
+        <div class="composer">
+          <textarea id="chatInput" placeholder="Chat with your AI opponent…"></textarea>
+          <button class="btn" id="sendBtn">Send</button>
+        </div>
       </div>
     </div>
-  </div>
+  </section>
+
+  <!-- ================= BENCHMARK ================= -->
+  <section class="view" id="view-bench">
+    <div class="lead-head">
+      <h2>Track A — decision quality</h2>
+      <span class="meta" id="lead-meta">how well LLMs choose Ludo moves, with dice luck removed</span>
+    </div>
+    <div class="cards">
+      <div class="card"><div class="k">Ceiling (oracle)</div><div class="v">100%</div></div>
+      <div class="card"><div class="k">Floor (random)</div><div class="v">50.7%</div></div>
+      <div class="card"><div class="k">Decisions / model</div><div class="v" id="card-n">150</div></div>
+    </div>
+    <div class="bars" id="bars"></div>
+    <div class="note">
+      <b>How it reads:</b> the bar is the % of positions where the model picked an oracle-best move (higher is better).
+      The two solid bars are real results; the three flagships are <b>awaiting API keys</b> — once added, each lands in the 50.7%→100% gap.
+      Generate fresh numbers by running <code>python3 benchmark/run.py</code> and updating <code>leaderboard.json</code>.
+    </div>
+  </section>
+</div>
 
 <script>
-/* ============================================================
-   BOARD GEOMETRY
-   ============================================================ */
-const MAIN_PATH = [
-  [6,1],[6,2],[6,3],[6,4],[6,5],
-  [5,6],[4,6],[3,6],[2,6],[1,6],[0,6],
-  [0,7],
-  [0,8],[1,8],[2,8],[3,8],[4,8],[5,8],
-  [6,9],[6,10],[6,11],[6,12],[6,13],[6,14],
-  [7,14],
-  [8,14],[8,13],[8,12],[8,11],[8,10],[8,9],
-  [9,8],[10,8],[11,8],[12,8],[13,8],[14,8],
-  [14,7],
-  [14,6],[13,6],[12,6],[11,6],[10,6],[9,6],
-  [8,5],[8,4],[8,3],[8,2],[8,1],[8,0],
-  [7,0],
-  [6,0]
-]; // 52 cells
-const START = { red:0, yellow:26 };
-const HOME = {
-  red:    [[7,1],[7,2],[7,3],[7,4],[7,5],[7,7]],
-  yellow: [[7,13],[7,12],[7,11],[7,10],[7,9],[7,7]]
+/* ===================== tabs ===================== */
+document.querySelectorAll('.tab').forEach(function(t){
+  t.addEventListener('click', function(){
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('view-'+t.dataset.view).classList.add('active');
+  });
+});
+
+/* ===================== benchmark leaderboard ===================== */
+var FALLBACK = {
+  n_positions: 150,
+  rows: [
+    {label:"Oracle (ceiling)", optimal_pct:100, state:"done", color:"#34b27b"},
+    {label:"Random (floor)",   optimal_pct:50.7, state:"done", color:"#9aa3b2"},
+    {label:"GPT-5.5",          state:"pending", color:"#3d8bd4"},
+    {label:"Claude Opus 4.8",  state:"pending", color:"#e07a3f"},
+    {label:"Gemini 3.1 Pro",   state:"pending", color:"#6c5ce7"}
+  ]
 };
-const SAFE = [0,13,26,39,8,21,34,47]; // start squares + star squares
-const FINISH = 56; // relative position of "home"
-
-function cellOf(player, rel){
-  if(rel <= 50) return MAIN_PATH[(START[player]+rel)%52];
-  return HOME[player][rel-51];
+function renderLeaderboard(data){
+  document.getElementById('card-n').textContent = data.n_positions;
+  var host = document.getElementById('bars');
+  host.innerHTML = "";
+  var rows = data.rows.slice().sort(function(a,b){
+    var av = a.state==='done'? a.optimal_pct : -1;
+    var bv = b.state==='done'? b.optimal_pct : -1;
+    return bv - av;
+  });
+  rows.forEach(function(r){
+    var row = document.createElement('div'); row.className='barrow';
+    var lbl = document.createElement('div'); lbl.className='lbl'; lbl.textContent=r.label;
+    var track = document.createElement('div'); track.className='track';
+    var val = document.createElement('div'); val.className='val';
+    if(r.state==='done'){
+      var fill=document.createElement('div'); fill.className='fill';
+      fill.style.width=r.optimal_pct+'%'; fill.style.background=r.color;
+      track.appendChild(fill);
+      val.textContent=r.optimal_pct.toFixed(1)+'%';
+    } else {
+      track.classList.add('pending');
+      var p=document.createElement('span'); p.className='pend'; p.textContent='🔒 awaiting API key';
+      track.appendChild(p);
+      val.classList.add('muted'); val.textContent='—';
+    }
+    row.appendChild(lbl); row.appendChild(track); row.appendChild(val);
+    host.appendChild(row);
+  });
 }
+fetch('leaderboard.json').then(function(r){ if(!r.ok) throw 0; return r.json(); })
+  .then(renderLeaderboard).catch(function(){ renderLeaderboard(FALLBACK); });
 
-/* paint the track cells (everything that isn't a home block or the center) */
-const board = document.getElementById("board");
-const inHome = (r,c)=> (r<6&&c<6)||(r<6&&c>8)||(r>8&&c<6)||(r>8&&c>8);
-const inCenter = (r,c)=> r>=6&&r<=8&&c>=6&&c<=8;
+/* ===================== Ludo game ===================== */
+const MAIN_PATH=[
+  [6,1],[6,2],[6,3],[6,4],[6,5],[5,6],[4,6],[3,6],[2,6],[1,6],[0,6],[0,7],
+  [0,8],[1,8],[2,8],[3,8],[4,8],[5,8],[6,9],[6,10],[6,11],[6,12],[6,13],[6,14],
+  [7,14],[8,14],[8,13],[8,12],[8,11],[8,10],[8,9],[9,8],[10,8],[11,8],[12,8],[13,8],[14,8],
+  [14,7],[14,6],[13,6],[12,6],[11,6],[10,6],[9,6],[8,5],[8,4],[8,3],[8,2],[8,1],[8,0],[7,0],[6,0]
+];
+const START={red:0,yellow:26};
+const HOME={red:[[7,1],[7,2],[7,3],[7,4],[7,5],[7,7]],yellow:[[7,13],[7,12],[7,11],[7,10],[7,9],[7,7]]};
+const SAFE=[0,13,26,39,8,21,34,47]; const FINISH=56;
+function cellOf(p,rel){ return rel<=50 ? MAIN_PATH[(START[p]+rel)%52] : HOME[p][rel-51]; }
+
+const board=document.getElementById("board");
+const inHome=(r,c)=> (r<6&&c<6)||(r<6&&c>8)||(r>8&&c<6)||(r>8&&c>8);
+const inCenter=(r,c)=> r>=6&&r<=8&&c>=6&&c<=8;
 function cellColor(r,c){
-  if(r===7 && c>=1 && c<=5) return "red";
-  if(r===7 && c>=9 && c<=13) return "yellow";
-  if(c===7 && r>=1 && r<=5) return "green";
-  if(c===7 && r>=9 && r<=13) return "blue";
-  if(r===6&&c===1) return "red";
-  if(r===8&&c===13) return "yellow";
-  if(r===1&&c===8) return "green";
-  if(r===13&&c===6) return "blue";
-  return "";
+  if(r===7&&c>=1&&c<=5)return"red"; if(r===7&&c>=9&&c<=13)return"yellow";
+  if(c===7&&r>=1&&r<=5)return"green"; if(c===7&&r>=9&&r<=13)return"blue";
+  if(r===6&&c===1)return"red"; if(r===8&&c===13)return"yellow";
+  if(r===1&&c===8)return"green"; if(r===13&&c===6)return"blue"; return"";
 }
 for(let r=0;r<15;r++)for(let c=0;c<15;c++){
-  if(inHome(r,c)||inCenter(r,c)) continue;
+  if(inHome(r,c)||inCenter(r,c))continue;
   const d=document.createElement("div");
   let cls="cell "+cellColor(r,c);
-  const abs = MAIN_PATH.findIndex(p=>p[0]===r&&p[1]===c);
-  if([8,21,34,47].includes(abs)) cls="cell star";
-  d.className=cls.trim();
-  d.style.gridRow=r+1; d.style.gridColumn=c+1;
-  board.appendChild(d);
+  const abs=MAIN_PATH.findIndex(p=>p[0]===r&&p[1]===c);
+  if([8,21,34,47].includes(abs))cls="cell star";
+  d.className=cls.trim(); d.style.gridRow=r+1; d.style.gridColumn=c+1; board.appendChild(d);
 }
 
-/* ============================================================
-   GAME STATE + LOGIC
-   ============================================================ */
 let state;
 function newGame(){
-  state = {
-    tokens:{ red:[-1,-1,-1,-1], yellow:[-1,-1,-1,-1] },
-    turn:"red", die:0, phase:"roll", pending:[], winner:null
-  };
-  setMsg("Your turn — roll the dice! (A 6 frees a token.)");
-  showDie("🎲");
-  updateUI();
+  state={tokens:{red:[-1,-1,-1,-1],yellow:[-1,-1,-1,-1]},turn:"red",die:0,phase:"roll",pending:[],winner:null};
+  setMsg("Your turn — roll the dice! (A 6 frees a token.)"); showDie("🎲"); updateUI();
 }
-const rnd = ()=> 1+Math.floor(Math.random()*6);
-const DIE_FACE = {1:"⚀",2:"⚁",3:"⚂",4:"⚃",5:"⚄",6:"⚅"};
+const rnd=()=>1+Math.floor(Math.random()*6);
+const FACE={1:"⚀",2:"⚁",3:"⚂",4:"⚃",5:"⚄",6:"⚅"};
+function movable(pl,die){const r=[];state.tokens[pl].forEach((rel,i)=>{if(rel===FINISH)return;if(rel===-1){if(die===6)r.push(i);}else if(rel+die<=FINISH)r.push(i);});return r;}
+function applyMove(pl,i,die){let rel=state.tokens[pl][i];let n=(rel===-1)?0:rel+die;state.tokens[pl][i]=n;let cap=0;if(n<=50){const a=(START[pl]+n)%52;if(!SAFE.includes(a)){const opp=pl==="red"?"yellow":"red";state.tokens[opp].forEach((o,j)=>{if(o>=0&&o<=50&&(START[opp]+o)%52===a){state.tokens[opp][j]=-1;cap++;}});}}return cap;}
+function checkWin(pl){if(state.tokens[pl].every(r=>r===FINISH)){state.winner=pl;state.phase="over";return true;}return false;}
 
-function movable(player, die){
-  const res=[];
-  state.tokens[player].forEach((rel,i)=>{
-    if(rel===FINISH) return;
-    if(rel===-1){ if(die===6) res.push(i); }
-    else if(rel+die<=FINISH) res.push(i);
-  });
-  return res;
-}
-
-function applyMove(player, i, die){
-  let rel = state.tokens[player][i];
-  let nrel = (rel===-1) ? 0 : rel+die;
-  state.tokens[player][i] = nrel;
-  let captured = 0;
-  if(nrel<=50){
-    const abs=(START[player]+nrel)%52;
-    if(!SAFE.includes(abs)){
-      const opp = player==="red"?"yellow":"red";
-      state.tokens[opp].forEach((orel,j)=>{
-        if(orel>=0 && orel<=50){
-          const oabs=(START[opp]+orel)%52;
-          if(oabs===abs){ state.tokens[opp][j]=-1; captured++; }
-        }
-      });
-    }
-  }
-  return captured;
-}
-
-function checkWin(player){
-  if(state.tokens[player].every(r=>r===FINISH)){
-    state.winner=player; state.phase="over";
-    return true;
-  }
-  return false;
-}
-
-/* ---------- human turn ---------- */
 function humanRoll(){
-  if(state.turn!=="red"||state.phase!=="roll"||state.winner) return;
-  const d=rnd(); state.die=d; showDie(DIE_FACE[d]);
+  if(state.turn!=="red"||state.phase!=="roll"||state.winner)return;
+  const d=rnd();state.die=d;showDie(FACE[d]);
   const mv=movable("red",d);
-  if(mv.length===0){
-    setMsg(`You rolled ${d}. No legal move — passing to AI.`);
-    state.phase="wait"; updateUI();
-    setTimeout(endTurn, 900);
-    return;
-  }
-  state.pending=mv; state.phase="move";
-  setMsg(`You rolled ${d}. Tap a glowing token to move it.`);
-  updateUI();
+  if(mv.length===0){setMsg(`You rolled ${d}. No legal move — passing.`);state.phase="wait";updateUI();setTimeout(endTurn,900);return;}
+  state.pending=mv;state.phase="move";setMsg(`You rolled ${d}. Tap a glowing token.`);updateUI();
 }
-
 function humanMove(i){
-  if(state.turn!=="red"||state.phase!=="move"||!state.pending.includes(i)) return;
-  const cap=applyMove("red",i,state.die);
-  state.pending=[];
-  if(cap) setMsg(`💥 You captured ${cap} AI token(s)! Sent back to base.`);
-  if(checkWin("red")){ winnerUI(); return; }
-  if(state.die===6){
-    state.phase="roll";
-    if(!cap) setMsg("You rolled a 6 — roll again!");
-    updateUI();
-  } else {
-    endTurn();
-  }
+  if(state.turn!=="red"||state.phase!=="move"||!state.pending.includes(i))return;
+  const cap=applyMove("red",i,state.die);state.pending=[];
+  if(cap)setMsg(`You captured ${cap} AI token(s)!`);
+  if(checkWin("red")){winnerUI();return;}
+  if(state.die===6){state.phase="roll";if(!cap)setMsg("You rolled a 6 — roll again!");updateUI();}
+  else{endTurn();}
 }
-
-/* ---------- AI turn ---------- */
 function aiTurn(){
-  if(state.winner) return;
-  updateUI();
+  if(state.winner)return; updateUI();
   setTimeout(()=>{
-    const d=rnd(); state.die=d; showDie(DIE_FACE[d]);
-    const mv=movable("yellow",d);
-    setMsg(`🤖 AI rolled ${d}.`);
-    if(mv.length===0){ setTimeout(endTurn,800); return; }
-    let best=mv[0], bestScore=-1e9;
-    mv.forEach(i=>{
-      const rel=state.tokens.yellow[i];
-      const nrel=(rel===-1)?0:rel+d;
-      let s=nrel*0.5;
-      if(rel===-1) s+=25;
-      if(nrel===FINISH) s+=200;
-      if(nrel<=50){
-        const abs=(START.yellow+nrel)%52;
-        if(!SAFE.includes(abs)){
-          state.tokens.red.forEach(orel=>{
-            if(orel>=0&&orel<=50 && (START.red+orel)%52===abs) s+=120;
-          });
-        } else s+=15;
-      }
-      if(s>bestScore){bestScore=s; best=i;}
-    });
+    const d=rnd();state.die=d;showDie(FACE[d]);
+    const mv=movable("yellow",d);setMsg(`AI rolled ${d}.`);
+    if(mv.length===0){setTimeout(endTurn,800);return;}
+    let best=mv[0],bs=-1e9;
+    mv.forEach(i=>{const rel=state.tokens.yellow[i];const n=(rel===-1)?0:rel+d;let s=n*0.5;if(rel===-1)s+=25;if(n===FINISH)s+=200;if(n<=50){const a=(START.yellow+n)%52;if(!SAFE.includes(a)){state.tokens.red.forEach(o=>{if(o>=0&&o<=50&&(START.red+o)%52===a)s+=120;});}else s+=15;}if(s>bs){bs=s;best=i;}});
     const cap=applyMove("yellow",best,d);
-    if(cap){ setMsg(`🤖💥 AI captured ${cap} of your token(s)!`); aiQuip("you (the AI) just captured the human's piece"); }
-    if(checkWin("yellow")){ winnerUI(); return; }
-    if(d===6){ setTimeout(aiTurn,700); }
-    else { setTimeout(endTurn,700); }
-  }, 700);
+    if(cap)setMsg(`AI captured ${cap} of your token(s)!`);
+    if(checkWin("yellow")){winnerUI();return;}
+    if(d===6){setTimeout(aiTurn,700);}else{setTimeout(endTurn,700);}
+  },700);
 }
-
 function endTurn(){
-  state.turn = (state.turn==="red")?"yellow":"red";
-  state.die=0; state.phase="roll"; state.pending=[];
-  if(state.turn==="red"){ setMsg("Your turn — roll the dice!"); showDie("🎲"); }
-  updateUI();
-  if(state.turn==="yellow" && !state.winner) aiTurn();
+  state.turn=(state.turn==="red")?"yellow":"red";state.die=0;state.phase="roll";state.pending=[];
+  if(state.turn==="red"){setMsg("Your turn — roll the dice!");showDie("🎲");}
+  updateUI(); if(state.turn==="yellow"&&!state.winner)aiTurn();
 }
+function winnerUI(){state.phase="over";setMsg(state.winner==="red"?"🎉 You win! Hit New game to replay.":"AI wins — hit New game for a rematch.");updateUI();aiQuip(state.winner==="yellow"?"you (the AI) just won":"the human just beat you");}
 
-function winnerUI(){
-  state.phase="over";
-  setMsg(state.winner==="red" ? "🎉 YOU WIN! Hit New Game to play again." : "🤖 AI WINS — hit New Game for a rematch.");
-  updateUI();
-  aiQuip(state.winner==="yellow" ? "you (the AI) just won the whole game" : "the human just beat you at Ludo");
-}
-
-/* ============================================================
-   RENDERING
-   ============================================================ */
-function setMsg(t){ document.getElementById("msg").textContent=t; }
-function showDie(t){ document.getElementById("dice").textContent=t; }
-
+function setMsg(t){document.getElementById("msg").textContent=t;}
+function showDie(t){document.getElementById("dice").textContent=t;}
 function updateUI(){
-  document.getElementById("turnLabel").textContent =
-    state.winner ? (state.winner==="red"?"You won! 🔴":"AI won 🟡")
-    : (state.turn==="red"?"Your turn 🔴":"AI thinking… 🟡");
-  document.getElementById("rollBtn").disabled =
-    !(state.turn==="red" && state.phase==="roll" && !state.winner);
+  document.getElementById("turnLabel").textContent=state.winner?(state.winner==="red"?"You won!":"AI won"):(state.turn==="red"?"Your turn":"AI thinking…");
+  document.getElementById("rollBtn").disabled=!(state.turn==="red"&&state.phase==="roll"&&!state.winner);
   renderBoard();
 }
-
 function renderBoard(){
   document.querySelectorAll(".piece").forEach(e=>e.remove());
-  document.getElementById("pad-red").innerHTML="";
-  document.getElementById("pad-yellow").innerHTML="";
-
-  const gridPieces=[];
-  ["red","yellow"].forEach(player=>{
-    state.tokens[player].forEach((rel,i)=>{
-      const mov = (player==="red" && state.turn==="red" && state.phase==="move" && state.pending.includes(i));
-      if(rel===-1 || rel===FINISH){
+  document.getElementById("pad-red").innerHTML=""; document.getElementById("pad-yellow").innerHTML="";
+  const grid=[];
+  ["red","yellow"].forEach(pl=>{
+    state.tokens[pl].forEach((rel,i)=>{
+      const mov=(pl==="red"&&state.turn==="red"&&state.phase==="move"&&state.pending.includes(i));
+      if(rel===-1||rel===FINISH){
         const el=document.createElement("div");
-        el.className="piece in-pad "+player+(rel===FINISH?" done":"")+(mov?" movable":"");
-        if(mov) el.onclick=()=>humanMove(i);
-        document.getElementById("pad-"+player).appendChild(el);
-      } else {
-        const [r,c]=cellOf(player,rel);
-        gridPieces.push({player,i,r,c,mov});
-      }
+        el.className="piece in-pad "+pl+(rel===FINISH?" done":"")+(mov?" movable":"");
+        if(mov)el.onclick=()=>humanMove(i);
+        document.getElementById("pad-"+pl).appendChild(el);
+      } else { const [r,c]=cellOf(pl,rel); grid.push({pl,i,r,c,mov}); }
     });
   });
-
   const groups={};
-  gridPieces.forEach(p=>{ const k=p.r+","+p.c; (groups[k]=groups[k]||[]).push(p); });
+  grid.forEach(p=>{const k=p.r+","+p.c;(groups[k]=groups[k]||[]).push(p);});
   Object.values(groups).forEach(g=>{
     g.forEach((p,idx)=>{
       const el=document.createElement("div");
-      el.className="piece "+p.player+(p.mov?" movable":"");
+      el.className="piece "+p.pl+(p.mov?" movable":"");
       el.style.gridRow=p.r+1; el.style.gridColumn=p.c+1;
-      const dx=(idx-(g.length-1)/2)*8;
-      el.style.transform="translate("+dx+"px,0)";
-      if(p.mov) el.onclick=()=>humanMove(p.i);
+      const dx=(idx-(g.length-1)/2)*8; el.style.transform="translate("+dx+"px,0)";
+      if(p.mov)el.onclick=()=>humanMove(p.i);
       board.appendChild(el);
     });
   });
 }
 
-/* ============================================================
-   OPTIONAL AI CHAT (OpenAI) — cosmetic, never blocks the game
-   ============================================================ */
+/* ----- optional OpenAI banter ----- */
 const MODEL="gpt-5.4-nano";
-let messages=[{role:"system",content:"You are 'Yellow', a cheeky but friendly AI opponent in a game of Ludo against the human (Red). Keep replies short and playful."}];
-const chatEl=document.getElementById("chat");
-const inputEl=document.getElementById("input");
-const sendEl=document.getElementById("send");
+let messages=[{role:"system",content:"You are 'Yellow', a cheeky but friendly AI Ludo opponent. Keep replies short and playful."}];
+const chatlog=document.getElementById("chatlog");
+const chatInput=document.getElementById("chatInput");
+const sendBtn=document.getElementById("sendBtn");
 const keyEl=document.getElementById("apikey");
-
-function addBubble(role,text){
-  const div=document.createElement("div");
-  div.className="msgb "+(role==="user"?"user":role==="assistant"?"bot":"system");
-  if(role!=="system"){const w=document.createElement("span");w.className="who";w.textContent=role==="user"?"🔴 You":"🟡 AI";div.appendChild(w);}
-  div.appendChild(document.createTextNode(text));
-  chatEl.appendChild(div); chatEl.scrollTop=chatEl.scrollHeight; return div;
+function bubble(role,text){
+  const d=document.createElement("div");
+  d.className="msgb "+(role==="user"?"user":role==="assistant"?"bot":"system");
+  d.textContent=text; chatlog.appendChild(d); chatlog.scrollTop=chatlog.scrollHeight; return d;
 }
 async function callOpenAI(msgs){
-  const key=keyEl.value.trim(); if(!key) return null;
-  if(!key.startsWith("sk-")) throw new Error("That doesn't look like an OpenAI key. Clear the box and paste your real key (it starts with 'sk-'). If the browser auto-filled junk, delete it first.");
-  const res=await fetch("https://api.openai.com/v1/chat/completions",{
-    method:"POST",
-    headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},
-    body:JSON.stringify({model:MODEL,messages:msgs})
-  });
-  if(!res.ok) throw new Error("("+res.status+") "+await res.text());
-  const data=await res.json();
-  return data.choices[0].message.content;
+  const key=keyEl.value.trim(); if(!key)return null;
+  if(!key.startsWith("sk-"))throw new Error("That doesn't look like an OpenAI key (should start with 'sk-'). Clear the box and paste the real one.");
+  const res=await fetch("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},body:JSON.stringify({model:MODEL,messages:msgs})});
+  if(!res.ok)throw new Error("("+res.status+") "+await res.text());
+  return (await res.json()).choices[0].message.content;
 }
-async function send(){
-  const text=inputEl.value.trim(); if(!text) return;
-  if(!keyEl.value.trim()){ addBubble("system","Add an OpenAI key above to chat."); return; }
-  addBubble("user",text); messages.push({role:"user",content:text}); inputEl.value="";
-  const thinking=addBubble("assistant","…"); sendEl.disabled=true;
-  try{
-    const reply=await callOpenAI(messages);
-    thinking.lastChild.textContent=reply; messages.push({role:"assistant",content:reply});
-  }catch(e){ thinking.lastChild.textContent="Chat error: "+e.message; messages.pop(); }
-  finally{ sendEl.disabled=false; inputEl.focus(); }
+async function sendChat(){
+  const text=chatInput.value.trim(); if(!text)return;
+  if(!keyEl.value.trim()){bubble("system","Add an OpenAI key above to chat.");return;}
+  bubble("user",text); messages.push({role:"user",content:text}); chatInput.value="";
+  const t=bubble("assistant","…"); sendBtn.disabled=true;
+  try{const reply=await callOpenAI(messages); t.textContent=reply; messages.push({role:"assistant",content:reply});}
+  catch(e){t.textContent="Chat error: "+e.message; messages.pop();}
+  finally{sendBtn.disabled=false; chatInput.focus();}
 }
-async function aiQuip(context){
-  if(!keyEl.value.trim()) return;
-  try{
-    const reply=await callOpenAI([
-      messages[0],
-      {role:"user",content:"In 12 words or fewer, react in-character to this Ludo event: "+context+"."}
-    ]);
-    if(reply) addBubble("assistant",reply);
-  }catch(e){/* ignore — game must not break */}
+async function aiQuip(ctx){ if(!keyEl.value.trim())return;
+  try{const reply=await callOpenAI([messages[0],{role:"user",content:"In 12 words or fewer, react in-character to this Ludo event: "+ctx+"."}]); if(reply)bubble("assistant",reply);}catch(e){}
 }
 
-/* ============================================================
-   WIRE UP
-   ============================================================ */
 document.getElementById("rollBtn").addEventListener("click",humanRoll);
 document.getElementById("newGameBtn").addEventListener("click",newGame);
-sendEl.addEventListener("click",send);
-inputEl.addEventListener("keydown",e=>{ if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();send();} });
-
+sendBtn.addEventListener("click",sendChat);
+chatInput.addEventListener("keydown",e=>{if(e.key==="Enter"&&!e.shiftKey){e.preventDefault();sendChat();}});
 newGame();
 </script>
 </body>

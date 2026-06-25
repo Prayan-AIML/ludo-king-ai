@@ -1,0 +1,11 @@
+{
+  "updated": "2026-06-25",
+  "n_positions": 150,
+  "rows": [
+    {"label": "Oracle (ceiling)", "optimal_pct": 100,  "state": "done",    "color": "#34b27b"},
+    {"label": "Random (floor)",   "optimal_pct": 50.7, "state": "done",    "color": "#9aa3b2"},
+    {"label": "GPT-5.5",          "state": "pending", "color": "#3d8bd4"},
+    {"label": "Claude Opus 4.8",  "state": "pending", "color": "#e07a3f"},
+    {"label": "Gemini 3.1 Pro",   "state": "pending", "color": "#6c5ce7"}
+  ]
+}
