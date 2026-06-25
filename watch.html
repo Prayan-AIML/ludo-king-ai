@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Watch the AIs decide — Ludo Benchmark</title>
+<style>
+  :root{
+    --red:#e2566a; --green:#34b27b; --yellow:#f2c14e; --blue:#3d8bd4;
+    --bg:#eef2f8; --panel:#ffffff; --ink:#283042; --muted:#6b7488;
+    --line:#e2e7f0; --soft:#f5f7fb; --accent:#3d8bd4;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh;}
+  .wrap{max-width:1080px; margin:0 auto; padding:20px 16px 40px;}
+  header{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:18px;}
+  .brand{display:flex; align-items:center; gap:12px;}
+  .logo{width:40px; height:40px; border-radius:10px; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; overflow:hidden; border:2px solid var(--ink);}
+  .logo span{display:block;} .logo .a{background:var(--red);} .logo .b{background:var(--green);} .logo .c{background:var(--blue);} .logo .d{background:var(--yellow);}
+  h1{margin:0; font-size:22px; font-weight:800;} .sub{margin:0; font-size:13px; color:var(--muted);}
+  .nav a{text-decoration:none; font-weight:700; color:var(--ink); background:var(--panel); border:1px solid var(--line); border-radius:11px; padding:9px 16px;}
+  .nav a:hover{border-color:var(--accent); color:var(--accent);}
+
+  .stage{display:flex; gap:18px; align-items:flex-start; flex-wrap:wrap;}
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:16px;}
+  .board{width:440px; max-width:90vw; aspect-ratio:1; display:grid; grid-template-columns:repeat(15,1fr); grid-template-rows:repeat(15,1fr); background:#fff; border:5px solid var(--ink); border-radius:12px; position:relative;}
+  .home{display:flex; align-items:center; justify-content:center; border:2px solid var(--ink);}
+  .home.red{background:var(--red); grid-area:1/1/7/7;} .home.green{background:var(--green); grid-area:1/10/7/16;}
+  .home.blue{background:var(--blue); grid-area:10/1/16/7;} .home.yellow{background:var(--yellow); grid-area:10/10/16/16;}
+  .pad{width:74%; height:74%; background:#fff; border-radius:12px; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; place-items:center; gap:4px; padding:8%;}
+  .cell{border:1px solid #d8dde6; background:#fff;}
+  .cell.red{background:var(--red);} .cell.green{background:var(--green);} .cell.blue{background:var(--blue);} .cell.yellow{background:var(--yellow);} .cell.star{background:#eef1f6;}
+  .center{grid-area:7/7/10/10; border:2px solid var(--ink); background:conic-gradient(from 45deg,var(--yellow) 0 90deg,var(--blue) 90deg 180deg,var(--red) 180deg 270deg,var(--green) 270deg 360deg);}
+  .piece{width:20px; height:20px; border-radius:50%; align-self:center; justify-self:center; border:3px solid rgba(0,0,0,.45); z-index:5; box-shadow:0 1px 2px rgba(0,0,0,.25);}
+  .piece.red{background:var(--red);} .piece.green{background:var(--green);} .piece.yellow{background:var(--yellow);} .piece.blue{background:var(--blue);}
+  .piece.in-pad{width:28px; height:28px;}
+  .piece.mover{box-shadow:0 0 0 4px #fff,0 0 0 7px var(--accent); z-index:8;}
+  .ring{align-self:center; justify-self:center; width:78%; height:78%; border:3px dashed var(--accent); border-radius:50%; z-index:7; animation:pulse 1s ease-in-out infinite;}
+  .ring.cap{border-color:#e2566a;}
+  @keyframes pulse{0%,100%{opacity:.5;}50%{opacity:1;}}
+
+  .side{width:360px; max-width:92vw;}
+  .row1{display:flex; align-items:center; gap:12px; margin-bottom:12px;}
+  .dice{width:46px; height:46px; border-radius:12px; background:var(--soft); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; font-size:30px;}
+  .turn{font-weight:800;} .turn .who{padding:2px 8px; border-radius:8px; color:#fff;}
+  .counter{margin-left:auto; font-size:13px; color:var(--muted);}
+  .btns{display:flex; gap:8px; margin-bottom:14px; flex-wrap:wrap;}
+  button.btn{cursor:pointer; font:inherit; font-weight:800; border:none; border-radius:11px; padding:9px 14px; color:#fff; background:var(--accent);}
+  button.btn.ghost{background:var(--soft); color:var(--ink); border:1px solid var(--line);}
+  button.btn:disabled{opacity:.45; cursor:not-allowed;}
+
+  .deciders{display:flex; flex-direction:column; gap:8px; margin-bottom:8px;}
+  .dec{display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--line); border-radius:12px; cursor:pointer; background:#fff;}
+  .dec.sel{border-color:var(--accent); background:#f3f8fe;}
+  .dec .dot{width:14px; height:14px; border-radius:50%; flex-shrink:0;}
+  .dec .name{font-weight:700; font-size:14px;}
+  .dec .badge{margin-left:auto; font-size:12px; font-weight:800; padding:2px 9px; border-radius:8px;}
+  .badge.ok{background:#e7f6ee; color:#1d8a5b;} .badge.no{background:#fdecec; color:#c1453f;}
+  .caption{margin-top:10px; font-size:14px; line-height:1.5; background:var(--soft); border:1px solid var(--line); border-radius:12px; padding:12px;}
+  .caption b{color:var(--ink);}
+  .legend{margin-top:12px; font-size:12px; color:var(--muted); line-height:1.5;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo"><span class="a"></span><span class="b"></span><span class="c"></span><span class="d"></span></div>
+      <div><h1>Watch the AIs decide</h1><p class="sub">step through real benchmark positions and see each pick</p></div>
+    </div>
+    <div class="nav"><a href="index.html">Home</a> <a href="benchmark.html">Leaderboard →</a></div>
+  </header>
+
+  <div class="stage">
+    <div class="board" id="board"></div>
+
+    <div class="panel side">
+      <div class="row1">
+        <span class="dice" id="dice">⚀</span>
+        <span class="turn">to move: <span class="who" id="who"></span></span>
+        <span class="counter" id="counter"></span>
+      </div>
+      <div class="btns">
+        <button class="btn ghost" id="prev">‹ Prev</button>
+        <button class="btn ghost" id="next">Next ›</button>
+        <button class="btn" id="auto">▶ Auto-play</button>
+      </div>
+      <div class="deciders" id="deciders"></div>
+      <div class="caption" id="caption"></div>
+      <div class="legend">
+        Pick a decider above to see its chosen move highlighted on the board — the
+        glowing token is the one it moves, the dashed ring is where it lands
+        (red ring = it captures someone). <b>✓</b> = matches the expert's best move.
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---- board geometry (shared 52-cell loop + 4 home columns) ---- */
+const MAIN_PATH=[
+  [6,1],[6,2],[6,3],[6,4],[6,5],[5,6],[4,6],[3,6],[2,6],[1,6],[0,6],[0,7],
+  [0,8],[1,8],[2,8],[3,8],[4,8],[5,8],[6,9],[6,10],[6,11],[6,12],[6,13],[6,14],
+  [7,14],[8,14],[8,13],[8,12],[8,11],[8,10],[8,9],[9,8],[10,8],[11,8],[12,8],[13,8],[14,8],
+  [14,7],[14,6],[13,6],[12,6],[11,6],[10,6],[9,6],[8,5],[8,4],[8,3],[8,2],[8,1],[8,0],[7,0],[6,0]
+];
+const START={red:0,green:13,yellow:26,blue:39};
+const HOME={
+  red:[[7,1],[7,2],[7,3],[7,4],[7,5],[7,7]],
+  green:[[1,7],[2,7],[3,7],[4,7],[5,7],[7,7]],
+  yellow:[[7,13],[7,12],[7,11],[7,10],[7,9],[7,7]],
+  blue:[[13,7],[12,7],[11,7],[10,7],[9,7],[7,7]]
+};
+const COLORS={red:"var(--red)",green:"var(--green)",yellow:"var(--yellow)",blue:"var(--blue)"};
+const FACE={1:"⚀",2:"⚁",3:"⚂",4:"⚃",5:"⚄",6:"⚅"};
+const FINISH=56;
+function cellOf(p,rel){ if(rel<=50) return MAIN_PATH[(START[p]+rel)%52]; if(rel<FINISH) return HOME[p][rel-51]; return null; }
+function absSq(p,rel){ return (START[p]+rel)%52; }
+
+/* ---- build static board (cells + homes + center + pads) ---- */
+const board=document.getElementById("board");
+function buildBoard(){
+  const inHome=(r,c)=> (r<6&&c<6)||(r<6&&c>8)||(r>8&&c<6)||(r>8&&c>8);
+  const inCenter=(r,c)=> r>=6&&r<=8&&c>=6&&c<=8;
+  function col(r,c){
+    if(r===7&&c>=1&&c<=5)return"red"; if(r===7&&c>=9&&c<=13)return"yellow";
+    if(c===7&&r>=1&&r<=5)return"green"; if(c===7&&r>=9&&r<=13)return"blue";
+    if(r===6&&c===1)return"red"; if(r===8&&c===13)return"yellow";
+    if(r===1&&c===8)return"green"; if(r===13&&c===6)return"blue"; return"";
+  }
+  const homes=[["red","1/1/7/7"],["green","1/10/7/16"],["blue","10/1/16/7"],["yellow","10/10/16/16"]];
+  homes.forEach(([name,area])=>{
+    const h=document.createElement("div"); h.className="home "+name; h.style.gridArea=area;
+    const pad=document.createElement("div"); pad.className="pad"; pad.id="pad-"+name;
+    h.appendChild(pad); board.appendChild(h);
+  });
+  const c=document.createElement("div"); c.className="center"; board.appendChild(c);
+  for(let r=0;r<15;r++)for(let cc=0;cc<15;cc++){
+    if(inHome(r,cc)||inCenter(r,cc))continue;
+    const d=document.createElement("div");
+    let cls="cell "+col(r,cc);
+    const abs=MAIN_PATH.findIndex(p=>p[0]===r&&p[1]===cc);
+    if([8,21,34,47].includes(abs))cls="cell star";
+    d.className=cls.trim(); d.style.gridRow=r+1; d.style.gridColumn=cc+1; board.appendChild(d);
+  }
+}
+buildBoard();
+
+/* ---- render tokens for a position, with optional highlighted move ---- */
+function render(item, move){
+  document.querySelectorAll(".piece,.ring").forEach(e=>e.remove());
+  ["red","green","yellow","blue"].forEach(p=>{const pad=document.getElementById("pad-"+p); if(pad)pad.innerHTML="";});
+  const onGrid={};
+  ["red","green","yellow","blue"].forEach(p=>{
+    const arr=item.tokens[p]; if(!arr)return;
+    arr.forEach((rel)=>{
+      if(rel===-1||rel===FINISH){
+        const el=document.createElement("div");
+        el.className="piece in-pad "+p; const pad=document.getElementById("pad-"+p); if(pad)pad.appendChild(el);
+      } else {
+        const cell=cellOf(p,rel); const k=cell[0]+","+cell[1];
+        (onGrid[k]=onGrid[k]||[]).push(p);
+      }
+    });
+  });
+  Object.keys(onGrid).forEach(k=>{
+    const [r,c]=k.split(",").map(Number); const ps=onGrid[k];
+    ps.forEach((p,idx)=>{
+      const el=document.createElement("div"); el.className="piece "+p;
+      el.style.gridRow=r+1; el.style.gridColumn=c+1;
+      const dx=(idx-(ps.length-1)/2)*8; el.style.transform="translate("+dx+"px,0)";
+      board.appendChild(el);
+    });
+  });
+  if(move){
+    const p=item.player;
+    if(move.from_rel>=0){
+      const fc=cellOf(p,move.from_rel);
+      if(fc){ const m=document.createElement("div"); m.className="piece mover "+p; m.style.gridRow=fc[0]+1; m.style.gridColumn=fc[1]+1; board.appendChild(m); }
+    }
+    const tc=cellOf(p,move.to_rel);
+    if(tc){ const ring=document.createElement("div"); ring.className="ring"+(move.captures.length?" cap":""); ring.style.gridRow=tc[0]+1; ring.style.gridColumn=tc[1]+1; board.appendChild(ring); }
+  }
+}
+
+/* ---- decision logic / UI ---- */
+let DATA=null, idx=0, selected=null, timer=null;
+
+function moveById(item,id){ return item.moves.find(m=>m.id===id); }
+function describe(item,move){
+  const p=item.player;
+  let s;
+  if(move.from_rel===-1) s=`bring a ${p} token out to square ${absSq(p,0)}`;
+  else if(move.to_rel===FINISH) s=`move a ${p} token HOME (finish)`;
+  else if(move.to_rel<=50) s=`move a ${p} token to square ${absSq(p,move.to_rel)}`;
+  else s=`move a ${p} token into home column (step ${move.to_rel-50})`;
+  if(move.captures.length) s+=` — captures ${move.captures.join(", ")}!`;
+  return s;
+}
+
+function show(){
+  const item=DATA.items[idx];
+  document.getElementById("dice").textContent=FACE[item.die];
+  const who=document.getElementById("who"); who.textContent=item.player; who.style.background=({red:"#e2566a",green:"#34b27b",yellow:"#caa12f",blue:"#3d8bd4"})[item.player];
+  document.getElementById("counter").textContent=`position ${idx+1} / ${DATA.items.length}`;
+  selected=DATA.deciders[0].label;
+  renderDeciders(item);
+  applySelection(item);
+}
+function renderDeciders(item){
+  const host=document.getElementById("deciders"); host.innerHTML="";
+  DATA.deciders.forEach(d=>{
+    const pick=item.picks[d.label];
+    const correct=item.oracle_best.includes(pick);
+    const row=document.createElement("div"); row.className="dec"+(d.label===selected?" sel":"");
+    row.innerHTML=`<span class="dot" style="background:${d.color}"></span>`+
+      `<span class="name">${d.label}</span>`+
+      `<span class="badge ${correct?'ok':'no'}">${correct?'✓ best':'✗ not best'}</span>`;
+    row.onclick=()=>{ selected=d.label; renderDeciders(item); applySelection(item); };
+    host.appendChild(row);
+  });
+}
+function applySelection(item){
+  const pick=item.picks[selected];
+  const move=moveById(item,pick);
+  render(item,move);
+  const correct=item.oracle_best.includes(pick);
+  const cap=document.getElementById("caption");
+  cap.innerHTML=`<b>${selected}</b> rolled a ${item.die} and plays move #${pick}:<br>`+
+    `${describe(item,move)}<br><br>`+
+    (correct?`This <b>matches the expert's best</b> move. ✓`
+            :`The expert would have played move #${item.oracle_best[0]} instead. ✗`);
+}
+
+function go(n){ idx=(n+DATA.items.length)%DATA.items.length; show(); }
+document.getElementById("prev").onclick=()=>go(idx-1);
+document.getElementById("next").onclick=()=>go(idx+1);
+document.getElementById("auto").onclick=function(){
+  if(timer){ clearInterval(timer); timer=null; this.textContent="▶ Auto-play"; return; }
+  this.textContent="⏸ Pause";
+  timer=setInterval(()=>{
+    const item=DATA.items[idx]; const labels=DATA.deciders.map(d=>d.label);
+    const cur=labels.indexOf(selected);
+    if(cur<labels.length-1){ selected=labels[cur+1]; renderDeciders(item); applySelection(item); }
+    else { go(idx+1); }
+  },2200);
+};
+
+fetch("decisions.json").then(r=>r.json()).then(d=>{ DATA=d; go(0); })
+  .catch(()=>{ document.getElementById("caption").textContent="Could not load decisions.json. Run: python3 benchmark/export_decisions.py"; });
+</script>
+</body>
+</html>

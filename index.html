@@ -18,7 +18,7 @@
   .logo span{display:block;} .logo .a{background:var(--red);} .logo .b{background:var(--green);} .logo .c{background:var(--blue);} .logo .d{background:var(--yellow);}
   h1{margin:0; font-size:26px; font-weight:800;}
   .tag{margin:0 0 28px; color:var(--muted); font-size:15px;}
-  .cards{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:16px;}
   a.card{display:block; text-decoration:none; color:inherit; background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:22px; transition:border-color .15s, transform .1s;}
   a.card:hover{border-color:var(--accent); transform:translateY(-2px);}
   .ico{width:52px; height:52px; border-radius:13px; display:flex; align-items:center; justify-content:center; font-size:28px; margin-bottom:14px;}
@@ -55,6 +55,13 @@
       <h2>Benchmark</h2>
       <p>Track A leaderboard — how well GPT, Claude, and Gemini choose Ludo moves, luck removed.</p>
       <span class="go">View leaderboard →</span>
+    </a>
+
+    <a class="card" href="watch.html">
+      <div class="ico bench">▶</div>
+      <h2>Watch</h2>
+      <p>Step through real positions on the board and watch each AI's move — expert vs the rest.</p>
+      <span class="go">Watch the AIs →</span>
     </a>
   </div>
 
