@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Ludo LLM Benchmark — Track A</title>
+<style>
+  :root{
+    --red:#e2566a; --green:#34b27b; --yellow:#f2c14e; --blue:#3d8bd4;
+    --bg:#eef2f8; --panel:#ffffff; --ink:#283042; --muted:#6b7488;
+    --line:#e2e7f0; --soft:#f5f7fb; --accent:#3d8bd4;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0; font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh;}
+  .wrap{max-width:840px; margin:0 auto; padding:20px 16px 40px;}
+  header{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:18px;}
+  .brand{display:flex; align-items:center; gap:12px;}
+  .logo{width:40px; height:40px; border-radius:10px; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; overflow:hidden; border:2px solid var(--ink);}
+  .logo span{display:block;} .logo .a{background:var(--red);} .logo .b{background:var(--green);} .logo .c{background:var(--blue);} .logo .d{background:var(--yellow);}
+  h1{margin:0; font-size:22px; font-weight:800;} .sub{margin:0; font-size:13px; color:var(--muted);}
+  .nav a{text-decoration:none; font-weight:700; color:var(--ink); background:var(--panel); border:1px solid var(--line); border-radius:11px; padding:9px 16px;}
+  .nav a:hover{border-color:var(--accent); color:var(--accent);}
+
+  .lead-head{display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:14px;}
+  .lead-head h2{margin:0; font-size:20px;} .lead-head .meta{font-size:13px; color:var(--muted);}
+  .cards{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px 16px;}
+  .card .k{font-size:13px; color:var(--muted);} .card .v{font-size:26px; font-weight:800;}
+  .bars{display:flex; flex-direction:column; gap:10px;}
+  .barrow{display:flex; align-items:center; gap:12px;}
+  .barrow .lbl{width:150px; font-weight:700; font-size:14px; flex-shrink:0;}
+  .track{flex:1; height:28px; background:var(--soft); border-radius:9px; position:relative; overflow:hidden; border:1px solid var(--line);}
+  .track.pending{border:1px dashed #c7cedb; background:transparent;}
+  .fill{height:100%; border-radius:9px;}
+  .pend{position:absolute; left:10px; top:50%; transform:translateY(-50%); font-size:12px; color:var(--muted);}
+  .barrow .val{width:64px; text-align:right; font-weight:800; font-size:14px; flex-shrink:0;}
+  .barrow .val.muted{color:var(--muted);}
+  .note{margin-top:18px; font-size:13px; color:var(--muted); line-height:1.6; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px 16px;}
+  code{background:var(--soft); padding:1px 6px; border-radius:6px; font-size:13px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="logo"><span class="a"></span><span class="b"></span><span class="c"></span><span class="d"></span></div>
+      <div><h1>Ludo LLM Benchmark</h1><p class="sub">Track A — decision quality</p></div>
+    </div>
+    <div class="nav"><a href="index.html">Home</a> <a href="play.html">Play →</a></div>
+  </header>
+
+  <div class="lead-head">
+    <h2>Leaderboard</h2>
+    <span class="meta" id="lead-meta">how well LLMs choose Ludo moves, with dice luck removed</span>
+  </div>
+  <div class="cards">
+    <div class="card"><div class="k">Ceiling (oracle)</div><div class="v">100%</div></div>
+    <div class="card"><div class="k">Floor (random)</div><div class="v">50.7%</div></div>
+    <div class="card"><div class="k">Decisions / model</div><div class="v" id="card-n">150</div></div>
+  </div>
+  <div class="bars" id="bars"></div>
+  <div class="note">
+    <b>How it reads:</b> the bar is the % of positions where the model picked an oracle-best move (higher is better).
+    The two solid bars are real results; the three flagships are <b>awaiting API keys</b> — once added, each lands in the 50.7%→100% gap.
+    Generate fresh numbers by running <code>python3 benchmark/run.py</code> and updating <code>leaderboard.json</code>.
+  </div>
+</div>
+
+<script>
+var FALLBACK={
+  n_positions:150,
+  rows:[
+    {label:"Oracle (ceiling)", optimal_pct:100, state:"done", color:"#34b27b"},
+    {label:"Random (floor)",   optimal_pct:50.7, state:"done", color:"#9aa3b2"},
+    {label:"GPT-5.5",          state:"pending", color:"#3d8bd4"},
+    {label:"Claude Opus 4.8",  state:"pending", color:"#e07a3f"},
+    {label:"Gemini 3.1 Pro",   state:"pending", color:"#6c5ce7"}
+  ]
+};
+function renderLeaderboard(data){
+  document.getElementById('card-n').textContent=data.n_positions;
+  var host=document.getElementById('bars'); host.innerHTML="";
+  var rows=data.rows.slice().sort(function(a,b){
+    var av=a.state==='done'?a.optimal_pct:-1, bv=b.state==='done'?b.optimal_pct:-1; return bv-av;
+  });
+  rows.forEach(function(r){
+    var row=document.createElement('div'); row.className='barrow';
+    var lbl=document.createElement('div'); lbl.className='lbl'; lbl.textContent=r.label;
+    var track=document.createElement('div'); track.className='track';
+    var val=document.createElement('div'); val.className='val';
+    if(r.state==='done'){
+      var fill=document.createElement('div'); fill.className='fill';
+      fill.style.width=r.optimal_pct+'%'; fill.style.background=r.color; track.appendChild(fill);
+      val.textContent=r.optimal_pct.toFixed(1)+'%';
+    } else {
+      track.classList.add('pending');
+      var p=document.createElement('span'); p.className='pend'; p.textContent='🔒 awaiting API key'; track.appendChild(p);
+      val.classList.add('muted'); val.textContent='—';
+    }
+    row.appendChild(lbl); row.appendChild(track); row.appendChild(val); host.appendChild(row);
+  });
+}
+fetch('leaderboard.json').then(function(r){if(!r.ok)throw 0;return r.json();})
+  .then(renderLeaderboard).catch(function(){renderLeaderboard(FALLBACK);});
+</script>
+</body>
+</html>
