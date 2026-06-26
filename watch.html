@@ -47,6 +47,9 @@
   .head .counter{margin-left:auto; font-size:13px; color:var(--muted);}
   .explain{font-size:13px; color:var(--muted); line-height:1.5; background:var(--soft); border:1px solid var(--line); border-radius:12px; padding:10px 12px;}
 
+  .grouptoggle{display:flex; gap:8px; margin-bottom:2px;}
+  .gbtn{cursor:pointer; font:inherit; font-weight:800; font-size:13px; border:1px solid var(--line); background:#fff; color:var(--muted); border-radius:10px; padding:8px 12px;}
+  .gbtn.on{background:var(--accent); color:#fff; border-color:var(--accent);}
   .deciders{display:flex; flex-direction:column; gap:8px;}
   .dec{display:flex; align-items:center; gap:10px; padding:10px 12px; border:2px solid var(--line); border-radius:12px; cursor:pointer; background:#fff;}
   .dec.sel{box-shadow:0 0 0 2px rgba(0,0,0,.03);}
@@ -105,6 +108,7 @@
         <button class="btn ghost" id="music">♪ Music: off</button>
       </div>
 
+      <div class="grouptoggle" id="grouptoggle"></div>
       <div class="deciders" id="deciders"></div>
       <div class="caption" id="caption"></div>
 
@@ -179,8 +183,17 @@ function render(item, move, ringColor){
   }
 }
 
-let DATA=null, idx=0, beat=0, timer=null;
+let DATA=null, idx=0, beat=0, timer=null, groupIdx=0;
+const curDeciders=()=> DATA.groups[groupIdx].deciders;
 const byId=(it,id)=>it.moves.find(m=>m.id===id);
+function renderToggle(){
+  const host=document.getElementById("grouptoggle"); host.innerHTML="";
+  DATA.groups.forEach((g,i)=>{
+    const b=document.createElement("button"); b.className="gbtn"+(i===groupIdx?" on":"");
+    b.textContent=g.name; b.onclick=()=>{ groupIdx=i; beat=0; show(); };
+    host.appendChild(b);
+  });
+}
 function describe(item,m){
   const p=item.player;
   let s;
@@ -199,6 +212,7 @@ function show(){
   document.getElementById("explain").innerHTML=
     `Both strategies must choose a move for <b style="color:${BCOL[it.player]}">${it.player}</b>. `+
     `They see the same board and the same roll of <b>${it.die}</b> — the only difference is how they pick.`;
+  renderToggle();
   renderDeciders(it);
   renderRanked(it);
   applyBeat();
@@ -206,13 +220,15 @@ function show(){
 
 function renderDeciders(it){
   const host=document.getElementById("deciders"); host.innerHTML="";
-  DATA.deciders.forEach((d,i)=>{
+  curDeciders().forEach((d,i)=>{
     const pick=it.picks[d.label];
-    const correct=it.oracle_best.includes(pick);
+    const has=(pick!==undefined && pick!==null);
+    const correct=has && it.oracle_best.includes(pick);
+    const badge = !has ? '<span class="badge no">awaiting key</span>'
+      : (correct?'<span class="badge ok">✓ best move</span>':'<span class="badge no">✗ not best</span>');
     const row=document.createElement("div"); row.className="dec"; row.style.borderColor=d.color;
     row.innerHTML=`<span class="dot" style="background:${d.color}"></span>`+
-      `<span class="name">${d.short||d.label}<small>${d.blurb||""}</small></span>`+
-      `<span class="badge ${correct?'ok':'no'}">${correct?'✓ best move':'✗ not best'}</span>`;
+      `<span class="name">${d.short||d.label}<small>${d.blurb||""}</small></span>`+badge;
     row.onclick=()=>{ beat=i+1; applyBeat(); };
     host.appendChild(row);
   });
@@ -254,9 +270,18 @@ function applyBeat(){
       `(${bestM.factors.join(", ")}). Press <b>Step ›</b> to watch each strategy choose.`;
     return;
   }
-  const d=DATA.deciders[beat-1]; if(!d){beat=0; return applyBeat();}
-  const pick=it.picks[d.label]; const m=byId(it,pick); const correct=it.oracle_best.includes(pick);
+  const DEC=curDeciders();
+  const d=DEC[beat-1]; if(!d){beat=0; return applyBeat();}
   document.querySelectorAll(".dec")[beat-1].classList.add("sel");
+  const pick=it.picks[d.label];
+  if(pick===undefined || pick===null){
+    render(it,null,d.color); highlightPicked(-1);
+    cap.style.borderLeftColor=d.color;
+    cap.innerHTML=`<span style="color:${d.color}">●</span> <b>${d.short||d.label}</b> hasn't been run yet. `+
+      `Add your API keys and run <b>benchmark/update.py</b> to see its move here.`;
+    return;
+  }
+  const m=byId(it,pick); const correct=it.oracle_best.includes(pick);
   render(it,m,d.color);
   highlightPicked(pick);
   cap.style.borderLeftColor=d.color;
@@ -273,7 +298,7 @@ function applyBeat(){
 }
 
 function go(n){ idx=(n+DATA.items.length)%DATA.items.length; beat=0; show(); }
-function step(){ if(beat<DATA.deciders.length){ beat++; applyBeat(); } else { go(idx+1); } }
+function step(){ if(beat<curDeciders().length){ beat++; applyBeat(); } else { go(idx+1); } }
 document.getElementById("prev").onclick=()=>go(idx-1);
 document.getElementById("next").onclick=()=>go(idx+1);
 document.getElementById("step").onclick=step;
@@ -313,8 +338,11 @@ function stopMusic(){
 }
 document.getElementById("music").onclick=()=> music ? stopMusic() : startMusic();
 
-fetch("decisions.json").then(r=>r.json()).then(d=>{ DATA=d; go(0); })
-  .catch(()=>{ document.getElementById("caption").textContent="Could not load decisions.json — run: python3 benchmark/export_decisions.py"; });
+fetch("decisions.json").then(r=>r.json()).then(d=>{
+  DATA=d;
+  if(!DATA.groups) DATA.groups=[{name:"Strategies", deciders:DATA.deciders||[]}];
+  go(0);
+}).catch(()=>{ document.getElementById("caption").textContent="Could not load decisions.json — run: python3 benchmark/export_decisions.py"; });
 </script>
 </body>
 </html>
