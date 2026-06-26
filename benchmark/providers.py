@@ -55,17 +55,32 @@ class OpenAIProvider:
     def decide(self, system, user):
         client = self._client_or_raise()
         t0 = time.time()
-        r = client.responses.create(
-            model=self.model,
-            input=[{"role": "system", "content": system},
-                   {"role": "user", "content": user}],
-        )
-        dt = time.time() - t0
-        usage = None
-        if getattr(r, "usage", None):
-            usage = {"input": getattr(r.usage, "input_tokens", None),
-                     "output": getattr(r.usage, "output_tokens", None)}
-        return DecideResult(text=r.output_text, latency_s=dt, usage=usage)
+        try:
+            r = client.responses.create(
+                model=self.model,
+                input=[{"role": "system", "content": system},
+                       {"role": "user", "content": user}],
+            )
+            dt = time.time() - t0
+            usage = None
+            if getattr(r, "usage", None):
+                usage = {"input": getattr(r.usage, "input_tokens", None),
+                         "output": getattr(r.usage, "output_tokens", None)}
+            return DecideResult(text=r.output_text, latency_s=dt, usage=usage)
+        except Exception:
+            # Fall back to Chat Completions if Responses isn't available for this model.
+            r = client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "system", "content": system},
+                          {"role": "user", "content": user}],
+            )
+            dt = time.time() - t0
+            usage = None
+            if getattr(r, "usage", None):
+                usage = {"input": r.usage.prompt_tokens,
+                         "output": r.usage.completion_tokens}
+            return DecideResult(text=r.choices[0].message.content,
+                                latency_s=dt, usage=usage)
 
 
 class AnthropicProvider:

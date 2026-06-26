@@ -289,18 +289,18 @@ function startMusic(){
   actx = actx || new (window.AudioContext||window.webkitAudioContext)();
   if(actx.state==="suspended") actx.resume();
   const master=actx.createGain(); master.gain.value=0.0; master.connect(actx.destination);
-  const filt=actx.createBiquadFilter(); filt.type="lowpass"; filt.frequency.value=750; filt.connect(master);
+  const filt=actx.createBiquadFilter(); filt.type="lowpass"; filt.frequency.value=1600; filt.connect(master);
   const freqs=[130.81,196.00,261.63,329.63]; // C3 G3 C4 E4 — a soft C-major pad
   const parts=freqs.map((f,i)=>{
-    const o=actx.createOscillator(); o.type="sine"; o.frequency.value=f;
-    const g=actx.createGain(); g.gain.value=0.05;
-    const lfo=actx.createOscillator(); lfo.type="sine"; lfo.frequency.value=0.04+0.015*i;
-    const lg=actx.createGain(); lg.gain.value=0.03;
+    const o=actx.createOscillator(); o.type="triangle"; o.frequency.value=f;
+    const g=actx.createGain(); g.gain.value=0.10;
+    const lfo=actx.createOscillator(); lfo.type="sine"; lfo.frequency.value=0.06+0.02*i;
+    const lg=actx.createGain(); lg.gain.value=0.05;
     lfo.connect(lg); lg.connect(g.gain);
     o.connect(g); g.connect(filt); o.start(); lfo.start();
     return {o,lfo};
   });
-  master.gain.linearRampToValueAtTime(0.05, actx.currentTime+3); // gentle fade-in, faint
+  master.gain.linearRampToValueAtTime(0.26, actx.currentTime+2); // gentle fade-in, audible but soft
   music={master,parts};
   document.getElementById("music").textContent="♪ Music: on";
 }

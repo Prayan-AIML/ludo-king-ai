@@ -80,6 +80,7 @@ def run():
 
     rows = []
     summaries = []
+    pending_labels = []
 
     for entry in config.MODELS:
         label, kind = entry["label"], entry["kind"]
@@ -128,6 +129,8 @@ def run():
             })
 
         if skipped or n == 0:
+            if kind in ("openai", "anthropic", "google"):
+                pending_labels.append(label)
             continue
 
         summaries.append({
@@ -142,6 +145,7 @@ def run():
         })
 
     _write(rows, summaries)
+    _write_web_leaderboard(summaries, pending_labels, len(posns))
     _print_leaderboard(summaries)
 
 
@@ -155,6 +159,33 @@ def _write(rows, summaries):
     with open("summary.json", "w") as f:
         json.dump(summaries, f, indent=2)
     print("\nWrote results.csv and summary.json")
+
+
+def _write_web_leaderboard(summaries, pending_labels, n_positions):
+    """Write ../leaderboard.json so the web page (benchmark.html) shows results."""
+    import datetime
+    by_label = {s["model"]: s for s in summaries}
+    rows = []
+    for entry in config.MODELS:
+        label = entry["label"]
+        row = {"label": label, "color": config.COLORS.get(label, "#9aa3b2")}
+        if label in config.NOTES:
+            row["note"] = config.NOTES[label]
+        if label in by_label:
+            row["optimal_pct"] = by_label[label]["optimal_move_pct"]
+            row["state"] = "done"
+        elif label in pending_labels:
+            row["state"] = "pending"
+        else:
+            continue
+        rows.append(row)
+
+    out = {"updated": str(datetime.date.today()),
+           "n_positions": n_positions, "rows": rows}
+    path = os.path.join(os.path.dirname(__file__), "..", "leaderboard.json")
+    with open(path, "w") as f:
+        json.dump(out, f, indent=2)
+    print(f"Wrote web leaderboard -> {os.path.abspath(path)}")
 
 
 def _print_leaderboard(summaries):

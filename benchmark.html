@@ -63,8 +63,19 @@
   <div class="bars" id="bars"></div>
   <div class="note">
     <b>How it reads:</b> the bar is the % of positions where the model picked an oracle-best move (higher is better).
-    The two solid bars are real results; the three flagships are <b>awaiting API keys</b> — once added, each lands in the 50.7%→100% gap.
+    The two solid bars are real results; models without a key yet are <b>awaiting API keys</b> — once added, each lands in the 50.7%→100% gap.
     Generate fresh numbers by running <code>python3 benchmark/run.py</code> and updating <code>leaderboard.json</code>.
+  </div>
+
+  <div class="note" style="border-left:5px solid var(--green); border-radius:0 14px 14px 0;">
+    <b>About Oracle and Random.</b> These two aren't AI models — they're reference points that bracket the scale.
+    <b>Oracle</b> is a built-in expert that scores every legal move and always plays the highest-scoring one, so it sets
+    the <b>100% ceiling</b> — it literally defines what "best" means in this benchmark. <b>Random</b> ignores the board
+    completely and picks any legal move at all, scoring about <b>50.7%</b> — roughly the level you'd reach by pure luck.
+    Every real model is measured between these two: the closer a model sits to Oracle, the more its choices match an
+    expert's; the closer to Random, the more it's effectively guessing. (One honest caveat: the Oracle is a strong
+    heuristic, not a mathematically perfect solver, so a score reflects agreement with a strong expert reference rather
+    than provable optimality.)
   </div>
 </div>
 
@@ -74,9 +85,9 @@ var FALLBACK={
   rows:[
     {label:"Oracle (ceiling)", optimal_pct:100, state:"done", color:"#34b27b", note:"not an AI — a built-in expert that always plays the best move (the 100% ceiling)"},
     {label:"Random (floor)",   optimal_pct:50.7, state:"done", color:"#9aa3b2", note:"not an AI — picks a legal move blindly, ignoring the board (the guessing floor)"},
-    {label:"GPT-5.5",          state:"pending", color:"#3d8bd4"},
-    {label:"Claude Opus 4.8",  state:"pending", color:"#e07a3f"},
-    {label:"Gemini 3.1 Pro",   state:"pending", color:"#6c5ce7"}
+    {label:"GPT-5.4 nano",     state:"pending", color:"#3d8bd4"},
+    {label:"Gemini 2.5 Flash", state:"pending", color:"#6c5ce7"},
+    {label:"Claude Opus 4.8",  state:"pending", color:"#e07a3f"}
   ]
 };
 function renderLeaderboard(data){

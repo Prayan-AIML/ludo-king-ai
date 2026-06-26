@@ -1,11 +1,35 @@
 {
-  "updated": "2026-06-25",
+  "updated": "2026-06-26",
   "n_positions": 150,
   "rows": [
-    {"label": "Oracle (ceiling)", "optimal_pct": 100,  "state": "done", "color": "#34b27b", "note": "not an AI — a built-in expert that always plays the best move (the 100% ceiling)"},
-    {"label": "Random (floor)",   "optimal_pct": 50.7, "state": "done", "color": "#9aa3b2", "note": "not an AI — picks a legal move blindly, ignoring the board (the guessing floor)"},
-    {"label": "GPT-5.5",          "state": "pending", "color": "#3d8bd4"},
-    {"label": "Claude Opus 4.8",  "state": "pending", "color": "#e07a3f"},
-    {"label": "Gemini 3.1 Pro",   "state": "pending", "color": "#6c5ce7"}
+    {
+      "label": "Random (floor)",
+      "color": "#9aa3b2",
+      "note": "not an AI \u2014 picks a legal move blindly, ignoring the board (the guessing floor)",
+      "optimal_pct": 50.7,
+      "state": "done"
+    },
+    {
+      "label": "Oracle (ceiling)",
+      "color": "#34b27b",
+      "note": "not an AI \u2014 a built-in expert that always plays the best move (the 100% ceiling)",
+      "optimal_pct": 100.0,
+      "state": "done"
+    },
+    {
+      "label": "GPT-5.4 nano",
+      "color": "#3d8bd4",
+      "state": "pending"
+    },
+    {
+      "label": "Gemini 2.5 Flash",
+      "color": "#6c5ce7",
+      "state": "pending"
+    },
+    {
+      "label": "Claude Opus 4.8",
+      "color": "#e07a3f",
+      "state": "pending"
+    }
   ]
 }
