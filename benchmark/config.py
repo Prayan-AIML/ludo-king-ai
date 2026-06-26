@@ -38,5 +38,5 @@ NOTES = {
 }
 
 # Number of decision positions in the benchmark set (more = lower variance, more cost).
-N_POSITIONS = 150
+N_POSITIONS = 20
 SEED = 42

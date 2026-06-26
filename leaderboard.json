@@ -1,6 +1,6 @@
 {
   "updated": "2026-06-26",
-  "n_positions": 150,
+  "n_positions": 13,
   "rows": [
     {
       "label": "Random (floor)",
@@ -19,17 +19,17 @@
     {
       "label": "GPT-5.4 nano",
       "color": "#3d8bd4",
-      "state": "pending"
+      "state": "done"
     },
     {
       "label": "Gemini 2.5 Flash",
       "color": "#6c5ce7",
-      "state": "pending"
+      "state": "done"
     },
     {
       "label": "Claude Opus 4.8",
       "color": "#e07a3f",
-      "state": "pending"
+      "state": "awaiting"
     }
   ]
 }

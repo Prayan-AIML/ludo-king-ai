@@ -116,33 +116,51 @@ class AnthropicProvider:
 
 
 class GoogleProvider:
-    """Uses the new google-genai SDK (from google import genai)."""
+    """Calls the Gemini REST API directly (no SDK / no cryptography needed)."""
+    ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+
     def __init__(self, model):
         self.model = model
-        self._client = None
 
-    def _client_or_raise(self):
-        if self._client is None:
-            key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
-            if not key:
-                raise ProviderError("GOOGLE_API_KEY / GEMINI_API_KEY not set")
-            from google import genai
-            self._client = genai.Client(api_key=key)
-        return self._client
+    def _key_or_raise(self):
+        key = os.environ.get("GOOGLE_API_KEY") or os.environ.get("GEMINI_API_KEY")
+        if not key:
+            raise ProviderError("GOOGLE_API_KEY / GEMINI_API_KEY not set")
+        return key
 
     def decide(self, system, user):
-        client = self._client_or_raise()
-        from google.genai import types
-        t0 = time.time()
-        r = client.models.generate_content(
-            model=self.model,
-            contents=user,
-            config=types.GenerateContentConfig(system_instruction=system),
-        )
-        dt = time.time() - t0
-        usage = None
-        um = getattr(r, "usage_metadata", None)
-        if um:
-            usage = {"input": getattr(um, "prompt_token_count", None),
-                     "output": getattr(um, "candidates_token_count", None)}
-        return DecideResult(text=r.text, latency_s=dt, usage=usage)
+        import json as _json
+        import urllib.request
+        import urllib.error
+        key = self._key_or_raise()
+        url = self.ENDPOINT.format(model=self.model) + "?key=" + key
+        body = {
+            "systemInstruction": {"parts": [{"text": system}]},
+            "contents": [{"role": "user", "parts": [{"text": user}]}],
+        }
+        req = urllib.request.Request(
+            url, data=_json.dumps(body).encode(),
+            headers={"Content-Type": "application/json"})
+
+        max_retries = 5
+        for attempt in range(max_retries):
+            t0 = time.time()
+            try:
+                with urllib.request.urlopen(req, timeout=60) as resp:
+                    data = _json.loads(resp.read())
+                dt = time.time() - t0
+                cand = (data.get("candidates") or [{}])[0]
+                parts = cand.get("content", {}).get("parts", [])
+                text = "".join(p.get("text", "") for p in parts)
+                usage = None
+                um = data.get("usageMetadata")
+                if um:
+                    usage = {"input": um.get("promptTokenCount"),
+                             "output": um.get("candidatesTokenCount")}
+                return DecideResult(text=text, latency_s=dt, usage=usage)
+            except urllib.error.HTTPError as e:
+                if e.code == 429 and attempt < max_retries - 1:
+                    wait_secs = 2 ** attempt
+                    time.sleep(wait_secs)
+                    continue
+                raise RuntimeError(f"HTTP {e.code}: {e.read().decode()[:300]}")

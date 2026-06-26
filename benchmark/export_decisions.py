@@ -20,6 +20,23 @@ import os
 import random
 import sys
 
+
+def load_env():
+    root = os.path.join(os.path.dirname(__file__), "..")
+    for name in (".env.local", ".env"):
+        path = os.path.join(root, name)
+        if not os.path.exists(path):
+            continue
+        with open(path) as f:
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                os.environ.setdefault(k.strip(), v.strip().strip('"').strip("'"))
+        return True
+    return False
+
 from ludo import (distinct_legal_moves, apply_move, abs_square, SAFE,
                   TRACK_LEN, FINISH)
 from oracle import rank_moves, best_move_ids
@@ -61,7 +78,7 @@ def move_factors(state, player, m):
     return fac
 
 
-def export(n=40, seed=42):
+def export(n=40, seed=42, retry_model=None):
     pool = pos_mod.generate(n_positions=n * 6, seed=seed)
     random.Random(seed + 7).shuffle(pool)
     src = pool[:n]
@@ -70,8 +87,26 @@ def export(n=40, seed=42):
     # set up model providers; a missing key just disables that model
     model_entries = [e for e in config.MODELS
                      if e["kind"] in ("openai", "anthropic", "google")]
+    if retry_model:
+        model_entries = [e for e in model_entries if e["label"] == retry_model]
     provs = {e["label"]: make_provider(e["kind"], e["model"]) for e in model_entries}
     disabled = set()
+
+    # if retrying, load existing decisions and only re-query failed positions
+    existing_items_by_id = {}
+    if retry_model:
+        path = os.path.join(os.path.dirname(__file__), "..", "decisions.json")
+        try:
+            with open(path) as f:
+                existing = json.load(f)
+            existing_items_by_id = {item["id"]: item for item in existing["items"]}
+            # only re-query positions where this model failed
+            src = [p for p in src if p["id"] not in existing_items_by_id or retry_model not in existing_items_by_id[p["id"]]["picks"]]
+            if not src:
+                print(f"All {n} positions already have {retry_model} picks.")
+                return
+        except (FileNotFoundError, IndexError, KeyError):
+            pass
 
     items = []
     for p in src:
@@ -129,12 +164,41 @@ def export(n=40, seed=42):
 
     out = {"n_positions": len(items), "groups": groups, "items": items}
     path = os.path.join(os.path.dirname(__file__), "..", "decisions.json")
-    with open(path, "w") as f:
-        json.dump(out, f)
+
+    # if retrying a model, merge new picks into existing
+    if retry_model:
+        with open(path) as f:
+            existing = json.load(f)
+        new_ids = {item["id"] for item in items}
+        for new_item in items:
+            idx = next((i for i, e in enumerate(existing["items"]) if e["id"] == new_item["id"]), None)
+            if idx is not None:
+                existing["items"][idx]["picks"].update(new_item["picks"])
+        with open(path, "w") as f:
+            json.dump(existing, f)
+        print(f"Wrote {len(items)} retried decisions -> {os.path.abspath(path)}")
+    else:
+        with open(path, "w") as f:
+            json.dump(out, f)
+        print(f"Wrote {len(items)} decisions -> {os.path.abspath(path)}")
+
     ran = [m["label"] for m in models if m["label"] not in disabled]
-    print(f"Wrote {len(items)} decisions -> {os.path.abspath(path)}")
     print("Model picks populated for:", ", ".join(ran) if ran else "(none — no keys)")
 
 
 if __name__ == "__main__":
-    export(int(sys.argv[1]) if len(sys.argv) > 1 else 40)
+    load_env()
+    n = 40
+    retry_model = None
+    args = sys.argv[1:]
+    i = 0
+    while i < len(args):
+        if args[i] == "--model" and i + 1 < len(args):
+            retry_model = args[i + 1]
+            i += 2
+        elif args[i].isdigit():
+            n = int(args[i])
+            i += 1
+        else:
+            i += 1
+    export(n, retry_model=retry_model)

@@ -34,11 +34,19 @@ def load_env():
 
 
 if __name__ == "__main__":
+    import sys
+    watch_only = "--watch-only" in sys.argv
+
     load_env()
-    import run
     import export_decisions
-    print("\n=== 1/2: benchmark -> leaderboard.json ===")
-    run.run()
-    print("\n=== 2/2: watchable decisions -> decisions.json ===")
-    export_decisions.export(40)
+
+    if not watch_only:
+        import run
+        print("\n=== 1/2: benchmark -> leaderboard.json ===")
+        run.run()
+        print("\n=== 2/2: watchable decisions -> decisions.json ===")
+    else:
+        print("\n=== watch-only: decisions.json (20 positions per model) ===")
+
+    export_decisions.export(20)
     print("\nDone. Commit & push leaderboard.json + decisions.json to update the site.")
