@@ -28,7 +28,8 @@
   .card .k{font-size:13px; color:var(--muted);} .card .v{font-size:26px; font-weight:800;}
   .bars{display:flex; flex-direction:column; gap:10px;}
   .barrow{display:flex; align-items:center; gap:12px;}
-  .barrow .lbl{width:150px; font-weight:700; font-size:14px; flex-shrink:0;}
+  .barrow .lbl{width:170px; font-weight:700; font-size:14px; flex-shrink:0;}
+  .barrow .lbl small{display:block; font-weight:600; font-size:11px; color:var(--muted); line-height:1.35; margin-top:2px;}
   .track{flex:1; height:28px; background:var(--soft); border-radius:9px; position:relative; overflow:hidden; border:1px solid var(--line);}
   .track.pending{border:1px dashed #c7cedb; background:transparent;}
   .fill{height:100%; border-radius:9px;}
@@ -71,8 +72,8 @@
 var FALLBACK={
   n_positions:150,
   rows:[
-    {label:"Oracle (ceiling)", optimal_pct:100, state:"done", color:"#34b27b"},
-    {label:"Random (floor)",   optimal_pct:50.7, state:"done", color:"#9aa3b2"},
+    {label:"Oracle (ceiling)", optimal_pct:100, state:"done", color:"#34b27b", note:"not an AI — a built-in expert that always plays the best move (the 100% ceiling)"},
+    {label:"Random (floor)",   optimal_pct:50.7, state:"done", color:"#9aa3b2", note:"not an AI — picks a legal move blindly, ignoring the board (the guessing floor)"},
     {label:"GPT-5.5",          state:"pending", color:"#3d8bd4"},
     {label:"Claude Opus 4.8",  state:"pending", color:"#e07a3f"},
     {label:"Gemini 3.1 Pro",   state:"pending", color:"#6c5ce7"}
@@ -86,7 +87,8 @@ function renderLeaderboard(data){
   });
   rows.forEach(function(r){
     var row=document.createElement('div'); row.className='barrow';
-    var lbl=document.createElement('div'); lbl.className='lbl'; lbl.textContent=r.label;
+    var lbl=document.createElement('div'); lbl.className='lbl';
+    lbl.innerHTML = r.label + (r.note ? '<small>'+r.note+'</small>' : '');
     var track=document.createElement('div'); track.className='track';
     var val=document.createElement('div'); val.className='val';
     if(r.state==='done'){

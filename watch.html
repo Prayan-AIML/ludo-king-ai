@@ -102,6 +102,7 @@
         <button class="btn" id="step">Step ›</button>
         <button class="btn ghost" id="next">Skip ›</button>
         <button class="btn ghost" id="auto">▶ Auto-play</button>
+        <button class="btn ghost" id="music">♪ Music: off</button>
       </div>
 
       <div class="deciders" id="deciders"></div>
@@ -280,6 +281,37 @@ document.getElementById("auto").onclick=function(){
   if(timer){ clearInterval(timer); timer=null; this.textContent="▶ Auto-play"; return; }
   this.textContent="⏸ Pause"; timer=setInterval(step,2600);
 };
+
+/* ---- very faint generative ambient music (no external file) ---- */
+let actx=null, music=null;
+function startMusic(){
+  if(music) return;
+  actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+  if(actx.state==="suspended") actx.resume();
+  const master=actx.createGain(); master.gain.value=0.0; master.connect(actx.destination);
+  const filt=actx.createBiquadFilter(); filt.type="lowpass"; filt.frequency.value=750; filt.connect(master);
+  const freqs=[130.81,196.00,261.63,329.63]; // C3 G3 C4 E4 — a soft C-major pad
+  const parts=freqs.map((f,i)=>{
+    const o=actx.createOscillator(); o.type="sine"; o.frequency.value=f;
+    const g=actx.createGain(); g.gain.value=0.05;
+    const lfo=actx.createOscillator(); lfo.type="sine"; lfo.frequency.value=0.04+0.015*i;
+    const lg=actx.createGain(); lg.gain.value=0.03;
+    lfo.connect(lg); lg.connect(g.gain);
+    o.connect(g); g.connect(filt); o.start(); lfo.start();
+    return {o,lfo};
+  });
+  master.gain.linearRampToValueAtTime(0.05, actx.currentTime+3); // gentle fade-in, faint
+  music={master,parts};
+  document.getElementById("music").textContent="♪ Music: on";
+}
+function stopMusic(){
+  if(!music) return;
+  const m=music; music=null;
+  m.master.gain.linearRampToValueAtTime(0.0, actx.currentTime+1.2);
+  setTimeout(()=>{ m.parts.forEach(p=>{ try{p.o.stop(); p.lfo.stop();}catch(e){} }); }, 1400);
+  document.getElementById("music").textContent="♪ Music: off";
+}
+document.getElementById("music").onclick=()=> music ? stopMusic() : startMusic();
 
 fetch("decisions.json").then(r=>r.json()).then(d=>{ DATA=d; go(0); })
   .catch(()=>{ document.getElementById("caption").textContent="Could not load decisions.json — run: python3 benchmark/export_decisions.py"; });

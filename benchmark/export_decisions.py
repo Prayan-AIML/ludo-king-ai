@@ -62,7 +62,11 @@ def move_factors(state, player, m):
 
 
 def export(n=40, seed=42):
-    src = pos_mod.generate(n_positions=n, seed=seed)
+    # Generate a big pool across many games, then shuffle so consecutive
+    # positions are UNRELATED (not sequential states of the same game).
+    pool = pos_mod.generate(n_positions=n * 6, seed=seed)
+    random.Random(seed + 7).shuffle(pool)
+    src = pool[:n]
     rng = random.Random(seed)
     items = []
     for p in src:
