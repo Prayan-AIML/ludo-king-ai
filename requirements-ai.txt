@@ -1,0 +1,4 @@
+# Dependencies for the local trash-talk backend (ai_server.py)
+flask>=3.0
+openai>=1.99
+python-dotenv>=1.0

@@ -87,9 +87,8 @@
     </div>
 
     <div class="panel chat">
-      <div class="keybar"><input id="apikey" type="text" name="openai_key_box" placeholder="(optional) OpenAI key for AI banter — sk-…" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-1p-ignore="true" /></div>
-      <p class="hint">The game works without a key. Add one only for AI taunts. Nothing is saved.</p>
-      <div id="chatlog"><div class="msgb system">Roll the dice to start. Add a key above to chat with your opponent.</div></div>
+      <p class="hint">Chat &amp; taunts are powered by gpt-5.4-nano through a small local server (<code>ai_server.py</code>). No key needed in your browser — the game works fine without the server too.</p>
+      <div id="chatlog"><div class="msgb system">Roll the dice to start. Start ai_server.py to chat with your opponent.</div></div>
       <div class="composer">
         <textarea id="chatInput" placeholder="Chat with your AI opponent…"></textarea>
         <button class="btn" id="sendBtn">Send</button>
@@ -156,13 +155,13 @@ function aiTurn(){
     let best=mv[0],bs=-1e9;
     mv.forEach(i=>{const rel=state.tokens.yellow[i];const n=(rel===-1)?0:rel+d;let s=n*0.5;if(rel===-1)s+=25;if(n===FINISH)s+=200;if(n<=50){const a=(START.yellow+n)%52;if(!SAFE.includes(a)){state.tokens.red.forEach(o=>{if(o>=0&&o<=50&&(START.red+o)%52===a)s+=120;});}else s+=15;}if(s>bs){bs=s;best=i;}});
     const cap=applyMove("yellow",best,d);
-    if(cap)setMsg(`AI captured ${cap} of your token(s)!`);
+    if(cap){setMsg(`AI captured ${cap} of your token(s)!`);aiQuip("capture",`you (Yellow) just captured ${cap} of the human's token(s) and sent them back to base`);}
     if(checkWin("yellow")){winnerUI();return;}
     if(d===6){setTimeout(aiTurn,700);}else{setTimeout(endTurn,700);}
   },700);
 }
 function endTurn(){state.turn=(state.turn==="red")?"yellow":"red";state.die=0;state.phase="roll";state.pending=[];if(state.turn==="red"){setMsg("Your turn — roll the dice!");showDie("🎲");}updateUI();if(state.turn==="yellow"&&!state.winner)aiTurn();}
-function winnerUI(){state.phase="over";setMsg(state.winner==="red"?"🎉 You win! Hit New game to replay.":"AI wins — hit New game for a rematch.");updateUI();aiQuip(state.winner==="yellow"?"you (the AI) just won":"the human just beat you");}
+function winnerUI(){state.phase="over";setMsg(state.winner==="red"?"🎉 You win! Hit New game to replay.":"AI wins — hit New game for a rematch.");updateUI();aiQuip("win",state.winner==="yellow"?"you (Yellow, the AI) just won the whole game":"the human just beat you and won the game");}
 function setMsg(t){document.getElementById("msg").textContent=t;}
 function showDie(t){document.getElementById("dice").textContent=t;}
 function updateUI(){
@@ -198,30 +197,41 @@ function renderBoard(){
     });
   });
 }
-const MODEL="gpt-5.4-nano";
-let messages=[{role:"system",content:"You are 'Yellow', a cheeky but friendly AI Ludo opponent. Keep replies short and playful."}];
+// The AI banter now goes through a tiny local backend (ai_server.py) that holds
+// the OpenAI key server-side. The browser never sees a key. If the server isn't
+// running, the game still plays — taunts just stay quiet.
+const API_BASE=""; // same origin: ai_server.py serves this page and the /api/* routes
 const chatlog=document.getElementById("chatlog");
 const chatInput=document.getElementById("chatInput");
 const sendBtn=document.getElementById("sendBtn");
-const keyEl=document.getElementById("apikey");
 function bubble(role,text){const d=document.createElement("div");d.className="msgb "+(role==="user"?"user":role==="assistant"?"bot":"system");d.textContent=text;chatlog.appendChild(d);chatlog.scrollTop=chatlog.scrollHeight;return d;}
-async function callOpenAI(msgs){
-  const key=keyEl.value.trim(); if(!key)return null;
-  if(!key.startsWith("sk-"))throw new Error("That doesn't look like an OpenAI key (should start with 'sk-'). Clear the box and paste the real one.");
-  const res=await fetch("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{"Content-Type":"application/json","Authorization":"Bearer "+key},body:JSON.stringify({model:MODEL,messages:msgs})});
-  if(!res.ok)throw new Error("("+res.status+") "+await res.text());
-  return (await res.json()).choices[0].message.content;
+// Build a compact snapshot of the game for the AI to react to.
+function gameContext(extra){
+  const r=state?state.tokens.red.filter(x=>x===FINISH).length:0;
+  const y=state?state.tokens.yellow.filter(x=>x===FINISH).length:0;
+  const sum=arr=>arr.reduce((a,x)=>a+(x===-1?0:x),0);
+  let winning="tied";
+  if(state){const rs=sum(state.tokens.red)+r*10,ys=sum(state.tokens.yellow)+y*10;winning=ys>rs+3?"yellow":rs>ys+3?"red":"tied";}
+  return Object.assign({turn:state?state.turn:"red",winning},extra||{});
+}
+async function postJSON(path,body){
+  const res=await fetch(API_BASE+path,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+  const data=await res.json().catch(()=>({}));
+  if(!res.ok)throw new Error(data.error||("server "+res.status));
+  return data;
 }
 async function sendChat(){
   const text=chatInput.value.trim(); if(!text)return;
-  if(!keyEl.value.trim()){bubble("system","Add an OpenAI key above to chat.");return;}
-  bubble("user",text); messages.push({role:"user",content:text}); chatInput.value="";
+  bubble("user",text); chatInput.value="";
   const t=bubble("assistant","…"); sendBtn.disabled=true;
-  try{const reply=await callOpenAI(messages); t.textContent=reply; messages.push({role:"assistant",content:reply});}
-  catch(e){t.textContent="Chat error: "+e.message; messages.pop();}
+  try{const data=await postJSON("/api/chat",gameContext({message:text})); t.textContent=data.reply;}
+  catch(e){t.textContent="(AI offline — start ai_server.py to chat) "+e.message;}
   finally{sendBtn.disabled=false; chatInput.focus();}
 }
-async function aiQuip(ctx){ if(!keyEl.value.trim())return; try{const reply=await callOpenAI([messages[0],{role:"user",content:"In 12 words or fewer, react in-character to this Ludo event: "+ctx+"."}]); if(reply)bubble("assistant",reply);}catch(e){} }
+// Fire a one-line taunt for a game event (capture, win, etc.). Silent on failure.
+async function aiQuip(event,lastMove){
+  try{const data=await postJSON("/api/taunt",gameContext({event,lastMove})); if(data&&data.taunt)bubble("assistant",data.taunt);}catch(e){}
+}
 document.getElementById("rollBtn").addEventListener("click",humanRoll);
 document.getElementById("newGameBtn").addEventListener("click",newGame);
 sendBtn.addEventListener("click",sendChat);
