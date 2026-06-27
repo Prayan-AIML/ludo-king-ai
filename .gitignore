@@ -8,3 +8,5 @@ benchmark/summary.json
 .env
 .env.local
 *.env
+node_modules/
+.next/

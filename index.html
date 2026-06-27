@@ -3,33 +3,49 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Ludo King — Play & LLM Benchmark</title>
+<title>Ludo King — Play vs Yellow & LLM Benchmark</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root{
-    --red:#e2566a; --green:#34b27b; --yellow:#f2c14e; --blue:#3d8bd4;
-    --bg:#eef2f8; --panel:#ffffff; --ink:#283042; --muted:#6b7488;
-    --line:#e2e7f0; --soft:#f5f7fb; --accent:#3d8bd4;
+    --red:#e9576b; --green:#37b27d; --yellow:#f4c534; --blue:#3f8fd6;
+    --felt:#241b2e; --felt-2:#2f2340;
+    --panel:#ffffff; --ink:#2a2438; --muted:#6f6880;
+    --line:#ece7f1; --soft:#f6f3fa; --accent:#f4c534;
+    --display:"Fredoka", "Trebuchet MS", system-ui, sans-serif;
+    --body:"Nunito", "Segoe UI", system-ui, sans-serif;
   }
   *{box-sizing:border-box;}
-  body{margin:0; font-family:"Trebuchet MS","Segoe UI",system-ui,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh;}
-  .wrap{max-width:760px; margin:0 auto; padding:40px 16px;}
-  .brand{display:flex; align-items:center; gap:14px; margin-bottom:6px;}
-  .logo{width:48px; height:48px; border-radius:12px; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; overflow:hidden; border:2px solid var(--ink);}
+  body{
+    margin:0; font-family:var(--body); color:var(--ink); min-height:100vh;
+    background:
+      radial-gradient(1100px 650px at 15% -10%, rgba(244,197,52,.10), transparent 60%),
+      radial-gradient(900px 700px at 110% 120%, rgba(63,143,214,.12), transparent 55%),
+      linear-gradient(160deg, var(--felt) 0%, var(--felt-2) 100%);
+    background-attachment:fixed;
+  }
+  .wrap{max-width:820px; margin:0 auto; padding:56px 18px;}
+  .brand{display:flex; align-items:center; gap:16px; margin-bottom:10px;}
+  .logo{width:56px; height:56px; border-radius:14px; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; overflow:hidden; box-shadow:0 8px 20px -8px rgba(0,0,0,.6); transform:rotate(-6deg);}
   .logo span{display:block;} .logo .a{background:var(--red);} .logo .b{background:var(--green);} .logo .c{background:var(--blue);} .logo .d{background:var(--yellow);}
-  h1{margin:0; font-size:26px; font-weight:800;}
-  .tag{margin:0 0 28px; color:var(--muted); font-size:15px;}
-  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:16px;}
-  a.card{display:block; text-decoration:none; color:inherit; background:var(--panel); border:1px solid var(--line); border-radius:18px; padding:22px; transition:border-color .15s, transform .1s;}
-  a.card:hover{border-color:var(--accent); transform:translateY(-2px);}
-  .ico{width:52px; height:52px; border-radius:13px; display:flex; align-items:center; justify-content:center; font-size:28px; margin-bottom:14px;}
-  .ico.play{background:#e8f6ef;} .ico.bench{background:#e9f1fb;}
-  a.card h2{margin:0 0 6px; font-size:19px; font-weight:800;}
-  a.card p{margin:0 0 12px; font-size:14px; color:var(--muted); line-height:1.5;}
-  .go{font-weight:800; color:var(--accent); font-size:14px;}
-  .miniboard{width:46px; height:46px; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; border:2px solid var(--ink); border-radius:9px; overflow:hidden;}
+  h1{margin:0; font-family:var(--display); font-size:38px; font-weight:700; color:#fff; line-height:1;}
+  .tag{margin:14px 0 34px; color:rgba(255,255,255,.66); font-size:17px; font-weight:600; line-height:1.5; max-width:560px;}
+  .cards{display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:18px;}
+  a.card{display:block; text-decoration:none; color:inherit; background:var(--panel); border:1px solid var(--line); border-radius:22px; padding:24px; box-shadow:0 18px 40px -24px rgba(8,4,16,.7); transition:transform .12s, box-shadow .12s;}
+  a.card:hover{transform:translateY(-4px); box-shadow:0 26px 50px -24px rgba(8,4,16,.75);}
+  a.card:focus-visible{outline:3px solid var(--accent); outline-offset:3px;}
+  .ico{width:56px; height:56px; border-radius:15px; display:flex; align-items:center; justify-content:center; font-size:30px; margin-bottom:16px;}
+  .ico.play{background:#eafaf2;} .ico.bench{background:#fff6da;}
+  a.card h2{margin:0 0 6px; font-family:var(--display); font-size:22px; font-weight:600;}
+  a.card p{margin:0 0 14px; font-size:14.5px; color:var(--muted); line-height:1.55; font-weight:600;}
+  .go{font-family:var(--display); font-weight:600; color:#c79407; font-size:15px;}
+  .miniboard{width:48px; height:48px; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr; border-radius:10px; overflow:hidden;}
   .miniboard span{display:block;}
-  .foot{margin-top:28px; font-size:13px; color:var(--muted);}
+  .foot{margin-top:34px; font-size:13.5px; color:rgba(255,255,255,.55); font-weight:600;}
   .foot a{color:var(--accent); text-decoration:none;}
+  .foot code{background:rgba(255,255,255,.08); padding:1px 6px; border-radius:5px;}
+  @media (max-width:520px){ h1{font-size:30px;} }
 </style>
 </head>
 <body>
@@ -38,7 +54,7 @@
     <div class="logo"><span class="a"></span><span class="b"></span><span class="c"></span><span class="d"></span></div>
     <h1>Ludo King</h1>
   </div>
-  <p class="tag">A playable Ludo game and a benchmark for how well LLMs make Ludo decisions.</p>
+  <p class="tag">Play Ludo against Yellow — an AI rival that trash-talks for real — plus a benchmark for how well LLMs actually choose Ludo moves.</p>
 
   <div class="cards">
     <a class="card" href="play.html">
@@ -46,7 +62,7 @@
         <div class="miniboard"><span style="background:var(--red)"></span><span style="background:var(--green)"></span><span style="background:var(--blue)"></span><span style="background:var(--yellow)"></span></div>
       </div>
       <h2>Play</h2>
-      <p>Play a full game of Ludo against a local AI opponent. Roll, capture, race home.</p>
+      <p>Take on Yellow, the AI rival. Roll, capture, race home — and trade smack talk along the way.</p>
       <span class="go">Play now →</span>
     </a>
 
